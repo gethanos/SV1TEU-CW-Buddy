@@ -1,0 +1,213 @@
+<!--
+Copyright (c) 2026 Georgalas Athanasios Antonios, SV1TEU
+
+This software is released under the MIT License.
+See the LICENSE file in the repository root for full license text.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SV1TEU CW Buddy</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="header-text">
+                    <h1><i class="fas fa-satellite"></i> SV1TEU CW Buddy</h1>
+                    <p class="subtitle">Generate and Decode Morse Code - Georgalas Athanasios Antonios, SV1TEU</p>
+                </div>
+            </div>
+        </header>
+        
+        <main>
+            <div class="main-content">
+                <!-- Left Sidebar - Controls -->
+                <div class="sidebar">
+                    <!-- QSO Configuration -->
+                    <div class="section">
+                        <h2><i class="fas fa-sliders-h"></i> QSO Configuration</h2>
+                        <div class="form-group">
+                            <label for="profile"><i class="fas fa-route"></i> QSO Mode</label>
+                            <select id="profile">
+                                <option value="short">Short QSO (Quick contact)</option>
+                                <option value="relaxed" selected>Relaxed QSO (Full ragchew)</option>
+                                <option value="custom">Custom Template</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="qsoText"><i class="fas fa-code"></i> QSO Template</label>
+                            <textarea id="qsoText" placeholder="Write your custom QSO template here..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Station Information -->
+                    <div class="section">
+                        <h2><i class="fas fa-user-circle"></i> Station Information</h2>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="myCall"><i class="fas fa-address-card"></i> Your Callsign</label>
+                                <input id="myCall" value="SV1TEU" placeholder="e.g. SV1TEU">
+                            </div>
+                            <div class="form-group">
+                                <label for="dxCall"><i class="fas fa-satellite-dish"></i> Remote Callsign</label>
+                                <input id="dxCall" value="SV1TJN" placeholder="e.g. DL1XYZ">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="myRST"><i class="fas fa-signal"></i> RST Report</label>
+                                <input id="myRST" value="5NN" placeholder="e.g. 5NN">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="myName"><i class="fas fa-user"></i> Your Name (Optional)</label>
+                            <input id="myName" placeholder="e.g. Thanos">
+                        </div>
+                        <div class="form-group">
+                            <label for="myQTH"><i class="fas fa-map-marker-alt"></i> Your QTH (Optional)</label>
+                            <input id="myQTH" placeholder="e.g. Athens">
+                        </div>
+                        <div class="form-group">
+                            <label for="myRIG"><i class="fas fa-wifi"></i> Your Rig / Power / Antenna (Optional)</label>
+                            <input id="myRIG" placeholder="e.g. Xiegu G90 10W EFHW">
+                        </div>
+                        <div class="checkbox-group">
+                            <input type="checkbox" id="hwcpy">
+                            <label for="hwcpy"><i class="fas fa-check-circle"></i> Include final "HW CPY?" line</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Right Side - Output -->
+                <div class="output-panel">
+                    <!-- ✅ CW decoder block moved ABOVE the Expanded Text card -->
+                    <div class="cw-decoder-wrapper">
+                        <div class="cw-decode-bar">
+                            <button id="cwStartBtn" class="cw-pill">
+                                <i class="fas fa-microphone"></i> Decode
+                            </button>
+                            <span id="cwStatus" class="cw-status">idle</span>
+                        </div>
+                        <div id="cwDecodedOverlay" class="cw-decoded-overlay" aria-live="polite"></div>
+                    </div>
+
+                    <div class="output-cards">
+                        <div class="output-card">
+                            <div class="output-header">
+                                <div class="output-title">
+                                    <i class="fas fa-expand-alt"></i> Expanded Text
+                                    <span class="status-indicator">
+                                        <span class="status-dot" id="text-status-dot"></span>
+                                        <span id="text-status-text">Ready</span>
+                                    </span>
+                                </div>
+                                <button class="btn-icon" onclick="copyToClipboard('expandedText')" title="Copy">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <div class="output-content" id="expandedText">Generated text will appear here...</div>
+                            
+                            <div class="playback-controls">
+                                <div class="playback-type">
+                                    <span>Playback:</span>
+                                    <div class="type-buttons">
+                                        <button class="type-btn active" id="text-phonetic-btn" onclick="setTextPlaybackType('phonetic')">
+                                            Phonetic
+                                        </button>
+                                        <button class="type-btn" id="text-normal-btn" onclick="setTextPlaybackType('normal')">
+                                            Normal
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="playback-controls-row">
+                                    <button class="playback-btn" onclick="playText()" id="play-text-btn">
+                                        <i class="fas fa-volume-up"></i> Play
+                                    </button>
+                                    <button class="playback-btn stop" onclick="stopTextPlayback()" id="stop-text-btn" disabled>
+                                        <i class="fas fa-stop"></i> Stop
+                                    </button>
+                                    <div class="control-group">
+                                        <div>Speed</div>
+                                        <div class="playback-speed">
+                                            <input type="range" min="0.5" max="2" step="0.1" value="1" id="text-speed">
+                                            <span id="text-speed-value">1.0x</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="output-card">
+                            <div class="output-header">
+                                <div class="output-title">
+                                    <i class="fas fa-code"></i> Morse Code
+                                    <span class="status-indicator">
+                                        <span class="status-dot" id="morse-status-dot"></span>
+                                        <span id="morse-status-text">Ready</span>
+                                    </span>
+                                </div>
+                                <button class="btn-icon" onclick="copyToClipboard('morseOutput')" title="Copy">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                            <div class="output-content" id="morseOutput">Generated Morse code will appear here...</div>
+                            
+                            <div class="playback-controls">
+                                <div class="playback-type">
+                                    <span>Playback:</span>
+                                    <div class="type-buttons">
+                                        <button class="type-btn active" id="morse-cw-btn" onclick="setMorsePlaybackType('cw')">
+                                            CW Tone
+                                        </button>
+                                        <button class="type-btn" id="morse-phonetic-btn" onclick="setMorsePlaybackType('phonetic')">
+                                            Phonetic
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="playback-controls-row">
+                                    <button class="playback-btn" onclick="playCW()" id="play-morse-btn">
+                                        <i class="fas fa-volume-up"></i> Play CW
+                                    </button>
+                                    <button class="playback-btn stop" onclick="stopCWPlayback()" id="stop-morse-btn" disabled>
+                                        <i class="fas fa-stop"></i> Stop
+                                    </button>
+                                    <div class="control-group">
+                                        <div>Speed (WPM)</div>
+                                        <div class="playback-speed">
+                                            <input type="range" min="5" max="40" step="1" value="15" id="cw-speed">
+                                            <span id="cw-speed-value">15 WPM</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="playback-controls-row">
+                                    <div class="control-group">
+                                        <div>Tone Frequency</div>
+                                        <div class="playback-speed">
+                                            <input type="range" min="300" max="1200" step="10" value="700" id="cw-frequency">
+                                            <span id="cw-frequency-value">700 Hz</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Footer with branding -->
+                    <div class="branding-footer">
+                        <p>Created by Georgalas Athanasios Antonios, SV1TEU</p>
+                        <p class="version">v1.6</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+    <script src="cw-decoder.js"></script>
+</body>
+</html>
