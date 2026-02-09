@@ -35,28 +35,28 @@ See the LICENSE file in the repository root for full license text.
         this.analyserNode = null;
         this.scriptNode = null;
         this.stream = null;
-        
+
         // Detection parameters
         this.smoothingConstant = 0.85; // Reduced from 0.9 since bandpass helps with noise
         this.threshold = 0.03; // Reduced from 0.05 since bandpass filters noise
         this.minThreshold = 0.02;
         this.maxThreshold = 0.5;
-        
+
         // Signal tracking
         this.isOn = false;
         this.onStartTime = 0;
         this.offStartTime = 0;
         this.lastTransitionTime = 0;
         this.minTransitionInterval = 15; // Minimum 15ms between state changes
-        
+
         // Timing storage
         this.onDurations = [];
         this.offDurations = [];
-        
+
         // Callbacks
         this.onStateChange = null;
         this.onTiming = null;
-        
+
         // Auto threshold
         this.recentLevels = [];
         this.maxRecentLevels = 100;
@@ -72,34 +72,44 @@ See the LICENSE file in the repository root for full license text.
         });
 
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
+
         this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
-        
+
         // Add bandpass filter for CW frequency range (400-900 Hz)
         this.bandpassFilter = this.audioContext.createBiquadFilter();
         this.bandpassFilter.type = 'bandpass';
         this.bandpassFilter.frequency.value = 650; // Center frequency
         this.bandpassFilter.Q.value = 2; // Bandwidth control (higher = narrower)
-        
+
+        // Limiter to reduce overload/clipping from speaker→mic setups
+        this.limiterNode = this.audioContext.createDynamicsCompressor();
+        this.limiterNode.threshold.value = -18; // dB
+        this.limiterNode.knee.value = 0;
+        this.limiterNode.ratio.value = 20;
+        this.limiterNode.attack.value = 0.003; // seconds
+        this.limiterNode.release.value = 0.08; // seconds
+
         this.analyserNode = this.audioContext.createAnalyser();
         this.analyserNode.fftSize = 256;
         this.analyserNode.smoothingTimeConstant = this.smoothingConstant;
-        
+
         this.scriptNode = this.audioContext.createScriptProcessor(256, 1, 1);
         this.scriptNode.onaudioprocess = this.process.bind(this);
-        
-        // Connect: source → bandpass → analyser → script → destination
+
+        // Connect: source → bandpass → limiter → analyser → script → destination
         this.sourceNode.connect(this.bandpassFilter);
-        this.bandpassFilter.connect(this.analyserNode);
+        this.bandpassFilter.connect(this.limiterNode);
+        this.limiterNode.connect(this.analyserNode);
         this.analyserNode.connect(this.scriptNode);
         this.scriptNode.connect(this.audioContext.destination);
-        
+
         this.offStartTime = performance.now();
       }
 
       stop() {
         if (this.sourceNode) this.sourceNode.disconnect();
         if (this.bandpassFilter) this.bandpassFilter.disconnect();
+        if (this.limiterNode) this.limiterNode.disconnect();
         if (this.scriptNode) this.scriptNode.disconnect();
         if (this.stream) this.stream.getTracks().forEach(t => t.stop());
         if (this.audioContext) this.audioContext.close();
@@ -108,75 +118,75 @@ See the LICENSE file in the repository root for full license text.
       process(event) {
         const input = event.inputBuffer.getChannelData(0);
         const currentTime = performance.now();
-        
+
         // Calculate RMS (Root Mean Square) amplitude
         let sum = 0;
         for (let i = 0; i < input.length; i++) {
           sum += input[i] * input[i];
         }
         const rms = Math.sqrt(sum / input.length);
-        
+
         // Track levels for auto threshold
         this.recentLevels.push(rms);
         if (this.recentLevels.length > this.maxRecentLevels) {
           this.recentLevels.shift();
         }
-        
+
         // Auto-adjust threshold
         if (this.recentLevels.length >= 50) {
           const sorted = [...this.recentLevels].sort((a, b) => a - b);
           const noise = sorted[Math.floor(sorted.length * 0.3)];
           const signal = sorted[Math.floor(sorted.length * 0.95)];
-          this.threshold = Math.max(this.minThreshold, 
+          this.threshold = Math.max(this.minThreshold,
                                     Math.min(this.maxThreshold,
                                     noise + (signal - noise) * 0.7)); // Increased from 0.6
         }
-        
+
         // Hysteresis: use different thresholds for ON and OFF transitions
         const onThreshold = this.threshold;
         const offThreshold = this.threshold * 0.7; // Lower threshold to turn off
-        
+
         const signalOn = this.isOn ? (rms > offThreshold) : (rms > onThreshold);
-        
+
         // Prevent rapid transitions
         const timeSinceLastTransition = currentTime - this.lastTransitionTime;
         if (timeSinceLastTransition < this.minTransitionInterval) {
           return; // Too soon, ignore this transition
         }
-        
+
         // State transitions
         if (signalOn && !this.isOn) {
           // Signal just turned ON
           this.isOn = true;
           this.onStartTime = currentTime;
           this.lastTransitionTime = currentTime;
-          
+
           // Record OFF duration
           const offDuration = currentTime - this.offStartTime;
           this.offDurations.push(offDuration);
-          
+
           if (this.onStateChange) {
             this.onStateChange(true, rms, this.threshold);
           }
-          
+
           if (this.onTiming) {
             this.onTiming(offDuration, false);
           }
-          
+
         } else if (!signalOn && this.isOn) {
           // Signal just turned OFF
           this.isOn = false;
           this.offStartTime = currentTime;
           this.lastTransitionTime = currentTime;
-          
+
           // Record ON duration
           const onDuration = currentTime - this.onStartTime;
           this.onDurations.push(onDuration);
-          
+
           if (this.onStateChange) {
             this.onStateChange(false, rms, this.threshold);
           }
-          
+
           if (this.onTiming) {
             this.onTiming(onDuration, true);
           }
@@ -189,19 +199,19 @@ See the LICENSE file in the repository root for full license text.
       constructor({ onChar, onWord }) {
         this.onChar = onChar;
         this.onWord = onWord;
-        
+
         this.currentCode = "";
         this.currentWord = "";
-        
+
         // Timing parameters (ms)
         this.ditLength = 60; // Start with 20 WPM (1200/20 = 60ms)
         this.updateTimings();
-        
+
         // Adaptive timing
         this.recentDits = [];
         this.recentDahs = [];
         this.maxSamples = 20;
-        
+
         // Timeout for word completion
         this.wordTimeout = null;
         this.charTimeout = null;
@@ -219,17 +229,17 @@ See the LICENSE file in the repository root for full license text.
         // Clear timeouts
         if (this.wordTimeout) clearTimeout(this.wordTimeout);
         if (this.charTimeout) clearTimeout(this.charTimeout);
-        
+
         if (isOn) {
           // CRITICAL FIX: Ignore very short noise bursts
           const minSignalDuration = 30; // Increased from 20ms to filter more noise
           if (duration < minSignalDuration) {
             return; // Ignore this signal
           }
-          
+
           // This is a dit or dah
           const isDit = duration < this.ditDahBoundary;
-          
+
           if (isDit) {
             this.currentCode += ".";
             this.recentDits.push(duration);
@@ -239,29 +249,29 @@ See the LICENSE file in the repository root for full license text.
             this.recentDahs.push(duration);
             if (this.recentDahs.length > this.maxSamples) this.recentDahs.shift();
           }
-          
+
           // Adapt timing - but only use reasonable samples
           if (this.recentDits.length >= 5) {
             // Filter out outliers before calculating average
             const sorted = [...this.recentDits].sort((a, b) => a - b);
             // Use median instead of mean to reject outliers
             const median = sorted[Math.floor(sorted.length / 2)];
-            
+
             if (Math.abs(median - this.ditLength) > 15) {
               this.ditLength = this.ditLength * 0.9 + median * 0.1; // Slow adaptation
               this.updateTimings();
             }
           }
-          
+
         } else {
           // This is a space
-          
+
           // Filter out very short gaps (noise)
           const minGapDuration = 20; // Ignore gaps shorter than 20ms
           if (duration < minGapDuration) {
             return;
           }
-          
+
           // Only process spacing if we have some morse code
           if (this.currentCode.length > 0) {
             if (duration >= this.charWordBoundary) {
@@ -277,7 +287,7 @@ See the LICENSE file in the repository root for full license text.
             // else: element space, do nothing
           }
         }
-        
+
         // Safety timeout - complete character if nothing happens for a while
         this.charTimeout = setTimeout(() => {
           this.completeCharacter();
@@ -287,26 +297,26 @@ See the LICENSE file in the repository root for full license text.
 
       completeCharacter() {
         if (this.currentCode.length === 0) return;
-        
+
         const char = MORSE_TO_TEXT[this.currentCode] || '?';
         this.currentWord += char;
-        
+
         if (this.onChar) {
           this.onChar(char);
         }
-        
+
         this.currentCode = "";
       }
 
       completeWord() {
         this.completeCharacter();
-        
+
         if (this.currentWord.length === 0) return;
-        
+
         if (this.onWord) {
           this.onWord(this.currentWord);
         }
-        
+
         this.currentWord = "";
       }
     }
@@ -321,7 +331,7 @@ See the LICENSE file in the repository root for full license text.
         try {
           // Clear display
           overlay.textContent = "";
-          
+
           // Create decoder
           decoder = new SimpleMorseDecoder({
             onChar: (char) => {
@@ -333,7 +343,7 @@ See the LICENSE file in the repository root for full license text.
               overlay.scrollTop = overlay.scrollHeight;
             }
           });
-          
+
           // Create detector
           detector = new SimpleEnvelopeDetector();
           detector.onStateChange = (isOn, level, threshold) => {
@@ -343,15 +353,15 @@ See the LICENSE file in the repository root for full license text.
           detector.onTiming = (duration, isOn) => {
             decoder.addTiming(duration, isOn);
           };
-          
+
           await detector.start();
-          
+
           running = true;
           startBtn.classList.add("active");
           startBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> Stop';
           statusEl.textContent = '⚪ Listening (400-900 Hz)';
           statusEl.style.color = 'green';
-          
+
         } catch (error) {
           statusEl.textContent = error.message || "microphone error";
           console.error("Error:", error);
@@ -359,7 +369,7 @@ See the LICENSE file in the repository root for full license text.
       } else {
         detector.stop();
         decoder.completeWord();
-        
+
         running = false;
         startBtn.classList.remove("active");
         startBtn.innerHTML = '<i class="fas fa-microphone"></i> Decode';
