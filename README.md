@@ -24,6 +24,23 @@ https://vle.cited.gr/apps/cw
 - Operators who want realistic CW QSO practice
 - Anyone interested in Morse Code and Web Audio
 
+## 📘 Before you ask for help 🙂
+
+CW decoding in a browser is tricky by nature.
+
+If you experience **decoder issues**, microphone problems, or unexpected behavior,
+please **read the `HELP.md` file first**.
+
+📘 Decoder Help: [HELP.md](HELP.md)
+
+It contains:
+- Decoder limitations and expectations
+- Audio & microphone setup tips
+- Common mistakes and how to fix them
+- A dedicated **Troubleshooting** section with real solutions
+
+👉 Most decoder issues are already covered there.
+ 
 ## Files
 - `index.html` — UI layout
 - `styles.css` — styling
