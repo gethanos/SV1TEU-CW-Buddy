@@ -79,3 +79,20 @@ To stop decoding:
 - **No microphone prompt / not working**: check browser permissions (site settings) and ensure HTTPS.
 - **No audio playback**: your browser may block audio until you click somewhere on the page first.
 - **Decoder inaccurate**: try a cleaner tone, less noise, and consistent speed.
+
+## ⚠️ Important: Facebook / Instagram In-App Browser
+
+If you open this page from **Facebook or Instagram**, it may open inside their built-in browser.
+
+⚠️ **The CW Decoder will NOT work there.**
+
+Reason:
+- Facebook’s in-app browser does **not fully support microphone access**
+- Web Audio + getUserMedia() is blocked or unreliable
+
+### ✅ Solution
+Open the page in a real browser:
+- Tap the **⋮ menu** (or “Open in browser”)
+- Choose **Chrome**, **Firefox**, or **Safari**
+
+Once opened in a normal browser, the **Decode (microphone)** function works normally.
