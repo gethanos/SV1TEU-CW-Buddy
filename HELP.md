@@ -75,6 +75,9 @@ Tips for better decoding:
 To stop decoding:
 - Click **Stop**
 
+### Reset (decoder)
+If decoding becomes unstable over time (for example it appears “stuck” on signal or stops reacting correctly), use **Reset** (next to the Decode/Stop button) while the decoder is running.
+
 ## Troubleshooting
 - **No microphone prompt / not working**: check browser permissions (site settings) and ensure HTTPS.
 - **No audio playback**: your browser may block audio until you click somewhere on the page first.
