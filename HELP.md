@@ -80,6 +80,28 @@ To stop decoding:
 - **No audio playback**: your browser may block audio until you click somewhere on the page first.
 - **Decoder inaccurate**: try a cleaner tone, less noise, and consistent speed.
 
+## ⚠️ Important: Windows: decoder shows no signal (mic works, but CW tone is “removed”)
+
+If the decoder works on Android/Linux but shows **no signal on Windows**, Windows or the browser is often applying **speech-oriented audio processing** that can suppress steady tones like CW (noise suppression, echo cancellation, “enhancements”, auto gain, etc.).
+
+### Fix 1 — Disable Windows microphone “enhancements”
+1. Open **Settings → System → Sound**
+2. Under **Input**, select the microphone you are using
+3. Turn **Audio enhancements** **Off** (or disable any “Enhancements” / “Signal processing” options)
+4. Also disable options like **Noise suppression**, **Echo cancellation**, **Automatic gain control** if your device driver/control panel exposes them (Realtek, headset software, etc.)
+5. Reload the page and try decoding again
+
+### Fix 2 — Disable browser/driver noise suppression features (if available)
+Some headsets/webcams and software suites apply additional processing even when Windows enhancements are off. If you have tools like **Realtek Audio Console**, headset vendor apps, **Krisp**, Discord/Teams processing, etc., temporarily disable their noise suppression / echo cancellation and re-test.
+
+### Fix 3 — Use a different input device
+If your current input is a **Bluetooth headset mic** or a **webcam mic**, try switching to a wired microphone or the built-in “Microphone Array”. Then select the same device in:
+- **Windows Sound input device**, and
+- the browser’s **site microphone** selection
+
+### Tip — Confirm the mic is actually receiving audio
+In **Settings → System → Sound → Input**, speak or play a CW tone near the mic and confirm the **input level meter moves**. If it moves in Windows but the decoder shows nothing, it is almost always audio processing suppressing the tone.
+
 ## ⚠️ Important: Facebook / Instagram In-App Browser
 
 If you open this page from **Facebook or Instagram**, it may open inside their built-in browser.
