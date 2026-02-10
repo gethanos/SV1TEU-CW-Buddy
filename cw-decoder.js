@@ -16,6 +16,25 @@ See the LICENSE file in the repository root for full license text.
       return;
     }
 
+    // In-app browser detection (Facebook/Instagram embedded browsers often break mic/WebAudio)
+    const ua = navigator.userAgent || "";
+    const isFacebookInApp = /FBAN|FBAV/i.test(ua);
+    const isInstagramInApp = /Instagram/i.test(ua);
+    const isAndroidWebView = /\bwv\b/i.test(ua) || /; wv\)/i.test(ua);
+    const isLikelyInAppBrowser = isFacebookInApp || isInstagramInApp || isAndroidWebView;
+
+    function showOpenInBrowserHelp() {
+      statusEl.textContent = "Open in browser";
+      statusEl.style.color = "#ffb000";
+
+      overlay.textContent =
+        "Decoder may not work in Facebook/Instagram in-app browser.\n" +
+        "Open in Chrome/Safari/Firefox.\n\n" +
+        "Android: ⋮ → Open in browser\n" +
+        "iPhone: Share → Open in Safari\n";
+      overlay.scrollTop = overlay.scrollHeight;
+    }
+
     const MORSE_TO_TEXT = {
       ".-": "A", "-...": "B", "-.-.": "C", "-..": "D", ".": "E",
       "..-.": "F", "--.": "G", "....": "H", "..": "I", ".---": "J",
@@ -327,8 +346,18 @@ See the LICENSE file in the repository root for full license text.
     let running = false;
 
     startBtn.addEventListener("click", async () => {
+      // If embedded browser, show guidance instead of failing silently
+      if (!running && isLikelyInAppBrowser) {
+        showOpenInBrowserHelp();
+        return;
+      }
+
       if (!running) {
         try {
+          // Immediate feedback (so it doesn't look like the button did nothing)
+          statusEl.textContent = "Requesting microphone…";
+          statusEl.style.color = "#aaa";
+
           // Clear display
           overlay.textContent = "";
 
@@ -363,8 +392,15 @@ See the LICENSE file in the repository root for full license text.
           statusEl.style.color = 'green';
 
         } catch (error) {
-          statusEl.textContent = error.message || "microphone error";
           console.error("Error:", error);
+
+          // If mic fails (common in in-app browsers), show guidance
+          if (isLikelyInAppBrowser) {
+            showOpenInBrowserHelp();
+          } else {
+            statusEl.textContent = error.message || "microphone error";
+            statusEl.style.color = "red";
+          }
         }
       } else {
         detector.stop();
