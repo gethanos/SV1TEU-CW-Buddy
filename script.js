@@ -18,22 +18,36 @@ const morseMap = {
 
 // Templates
 const templates = {
-    short: [
-        "{DX} DE {MY} KN",
-        "{DX} DE {MY} UR RST {RST} {RST} K",
-        "TNX FER CALL DE {MY}"
-    ],
-    relaxed: [
-        "CQ CQ CQ DE {MY} {MY} K",
-        "{DX} DE {MY} KN",
-        "{DX} DE {MY} UR RST {RST} {RST} K",
-        "TNX FER CALL DE {MY}",
-        "{NAME_LINE}",
-        "{QTH_LINE}",
-        "{RIG_LINE}"
-    ]
-};
+  // Mid‑QSO “next overs” (no CQ, no SK — meant for the middle of a contact)
+  short: [
+    "{DX} DE {MY} KN",
+    "{DX} DE {MY} UR RST {RST} {RST} KN",
+    "TNX FER CALL {DX} DE {MY} KN"
+  ],
 
+  // Full QSO / friendly ragchew (includes close)
+  relaxed: [
+    "CQ CQ CQ DE {MY} {MY} K",
+    "{DX} DE {MY} KN",
+    "{DX} DE {MY} UR RST {RST} {RST} KN",
+    "{NAME_LINE}",
+    "{QTH_LINE}",
+    "{RIG_LINE}",
+    "{INFO_END_RELAXED}",
+    "TNX FER QSO 73 DE {MY} SK"
+  ],
+
+  // Formal / common CW etiquette (structured, explicit ending)
+  formal: [
+    "CQ CQ CQ DE {MY} {MY} K",
+    "{DX} DE {MY} KN",
+    "{DX} DE {MY} UR RST {RST} {RST} KN",
+    "{NAME_LINE}",
+    "{QTH_LINE}",
+    "{INFO_END_FORMAL}",
+    "TNX FER QSO {DX} DE {MY} 73 SK"
+  ]
+};
 // State
 let textPlayback = {
     isPlaying: false,
@@ -132,6 +146,10 @@ function updateOutput() {
     data.NAME_LINE = data.NAME ? `NAME ${data.NAME} ${data.NAME}` : '';
     data.QTH_LINE = data.QTH ? `QTH ${data.QTH} ${data.QTH}` : '';
     data.RIG_LINE = data.RIG ? `RIG ${data.RIG}` : '';
+   // Add a handover marker only if at least one info line exists
+   const hasInfo = Boolean(data.NAME_LINE || data.QTH_LINE || data.RIG_LINE);
+   data.INFO_END_RELAXED = hasInfo ? 'BK' : '';
+   data.INFO_END_FORMAL  = hasInfo ? 'KN' : '';
 
     // Get template
     const templateText = document.getElementById('qsoText').value;
