@@ -1,42 +1,64 @@
 # SV1TEU CW Buddy — Help / How to Use
 
 ## 1) QSO Configuration
+
 ### QSO Mode
-- **Short QSO**: a quick minimal contact template
-- **Relaxed QSO**: a longer “ragchew” style template
-- **Custom Template**: write your own template text
+Choose how the built-in template is generated:
 
-### QSO Template (Custom Template)
-Write one QSO line per line.
+- **Short (Mid‑QSO overs)**: quick “next transmissions” for an ongoing contact (no CQ, no SK).
+- **Relaxed (Full QSO / Ragchew)**: a longer full QSO example with optional NAME / QTH / RIG info and an ending.
+- **Formal (Procedure / Etiquette)**: a more “by-the-book” full QSO style with clear directed handover (KN) and a formal closing.
+- **Write your own (Custom)**: type your own template text (one line per transmission line).
 
-Supported placeholders:
+### QSO Template (Write your own / Custom)
+Write **one CW transmission line per line**.
+
+The app replaces placeholders with your station info and removes empty optional lines automatically.
+
+#### Supported placeholders
 - `{MY}` = your callsign
 - `{DX}` = remote callsign
-- `{RST}` = RST report (defaults to 5NN if empty)
-- `{NAME}` = your name (optional)
-- `{QTH}` = your QTH/location (optional)
-- `{RIG}` = your rig/power/antenna (optional)
+- `{RST}` = RST report (defaults to **5NN** if empty)
 
-Auto-generated optional lines (used by the built-in Relaxed template):
-- `{NAME_LINE}` becomes `NAME ...` only if you entered a name
-- `{QTH_LINE}` becomes `QTH ...` only if you entered a QTH
-- `{RIG_LINE}` becomes `RIG ...` only if you entered rig info
+Optional fields:
+- `{NAME}` = your name
+- `{QTH}` = your QTH / location
+- `{RIG}` = your rig / power / antenna text
+
+#### Auto-generated optional lines (used by the built-in templates)
+These placeholders expand into complete “worded” lines only if the related field is filled in:
+
+- `{NAME_LINE}` becomes: `NAME <YOURNAME> <YOURNAME>`
+- `{QTH_LINE}` becomes: `QTH <YOURQTH> <YOURQTH>`
+- `{RIG_LINE}` becomes: `RIG <YOURRIG>`
 
 If an optional field is empty, its line is automatically removed from the final output.
 
+#### Prosign / procedure tips (K / KN / BK / SK)
+You can include common procedure markers in your template text:
+
+- **K** = “over” (any station may reply)
+- **KN** = “over to you only” (directed to the station you’re working)
+- **BK** = “break / back to you” (often used in ragchew-style back-and-forth)
+- **SK** = “end of contact”
+
+Tip: If you use optional info lines (`{NAME_LINE}`, `{QTH_LINE}`, `{RIG_LINE}`) you’ll usually want a proper handover afterwards (e.g. `BK` or `KN`) so it feels like a real QSO flow.
+
 ## 2) Station Information
 Fill in:
+
 - **Your Callsign** (required)
 - **Remote Callsign** (required)
 - **RST Report** (optional; default is 5NN)
 - **Name / QTH / Rig** (optional)
 
 ### “Include final HW CPY? line”
-When enabled, it appends:
+When enabled, it appends this final line:
+
 `HW CPY? {DX} DE {MY} KN`
 
 ## 3) Expanded Text (right panel)
-This shows the fully expanded QSO text (after placeholders are replaced).
+Shows the fully expanded QSO text (after placeholders are replaced).
 
 Buttons / controls:
 - **Copy**: copies the expanded text to clipboard
@@ -45,7 +67,7 @@ Buttons / controls:
   - **Speed** controls reading speed
 
 ## 4) Morse Code (right panel)
-This shows the generated Morse for the expanded text.
+Shows the generated Morse for the expanded text.
 
 Buttons / controls:
 - **Copy**: copies the Morse output to clipboard
