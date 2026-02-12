@@ -16,7 +16,6 @@ See the LICENSE file in the repository root for full license text.
       return;
     }
 
-    // In-app browser detection (Facebook/Instagram embedded browsers often break mic/WebAudio)
     const ua = navigator.userAgent || "";
     const isFacebookInApp = /FBAN|FBAV/i.test(ua);
     const isInstagramInApp = /Instagram/i.test(ua);
@@ -47,7 +46,6 @@ See the LICENSE file in the repository root for full license text.
       "-..-.": "/", "-...-": "=", "..--..": "?"
     };
 
-    // Simple envelope detector - much more reliable than Goertzel for beginners
     class SimpleEnvelopeDetector {
       constructor() {
         this.audioContext = null;
@@ -56,56 +54,60 @@ See the LICENSE file in the repository root for full license text.
         this.scriptNode = null;
         this.stream = null;
 
-        // Detection parameters
-        this.smoothingConstant = 0.85; // Reduced from 0.9 since bandpass helps with noise
-        this.threshold = 0.03; // Reduced from 0.05 since bandpass filters noise
+        this.smoothingConstant = 0.85;
+        this.threshold = 0.03;
         this.minThreshold = 0.02;
         this.maxThreshold = 0.5;
 
-        // Signal tracking
         this.isOn = false;
         this.onStartTime = 0;
         this.offStartTime = 0;
         this.lastTransitionTime = 0;
-        this.minTransitionInterval = 15; // Minimum 15ms between state changes
+        this.minTransitionInterval = 15;
 
-        // Timing storage
+        this.onConfirmFrames = 2;
+        this.offConfirmFrames = 2;
+        this.onCandidateFrames = 0;
+        this.offCandidateFrames = 0;
+
+        this.sampleTimeMs = 0;
+        this.sampleRate = 48000;
+
         this.onDurations = [];
         this.offDurations = [];
 
-        // Callbacks
         this.onStateChange = null;
         this.onTiming = null;
 
-        // Auto threshold
         this.recentLevels = [];
         this.maxRecentLevels = 100;
 
-        // Auto recalibration
         this.lastAutoResetTime = 0;
-        this.autoResetCooldown = 10000; // ms
-        this.stuckOnTimeout = 2500; // ms
+        this.autoResetCooldown = 10000;
+        this.stuckOnTimeout = 2500;
 
-        // Auto-centering (FFT peak detect)
-        this.centerMode = 'search'; // 'search' | 'lock'
+        this.centerMode = 'search';
         this.searchAfterMs = 1200;
         this.lastFftUpdateTime = 0;
-        this.fftUpdateInterval = 350; // ms
+        this.fftUpdateInterval = 350;
         this.minToneHz = 400;
         this.maxToneHz = 900;
         this.centerFrequency = 650;
-        this.freqSmoothing = 0.15; // only used in search mode
+        this.freqSmoothing = 0.15;
         this.freqData = null;
       }
 
       resetCalibration() {
-        const now = performance.now();
+        const now = this.sampleTimeMs || 0;
         this.threshold = 0.03;
         this.recentLevels = [];
         this.isOn = false;
         this.onStartTime = now;
         this.offStartTime = now;
         this.lastTransitionTime = now;
+
+        this.onCandidateFrames = 0;
+        this.offCandidateFrames = 0;
 
         this.centerMode = 'search';
 
@@ -155,21 +157,22 @@ See the LICENSE file in the repository root for full license text.
 
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
+        this.sampleRate = this.audioContext.sampleRate || this.sampleRate;
+        this.sampleTimeMs = 0;
+
         this.sourceNode = this.audioContext.createMediaStreamSource(this.stream);
 
-        // Add bandpass filter for CW frequency range (400-900 Hz)
         this.bandpassFilter = this.audioContext.createBiquadFilter();
         this.bandpassFilter.type = 'bandpass';
-        this.bandpassFilter.frequency.value = this.centerFrequency; // Center frequency
-        this.bandpassFilter.Q.value = 2; // Bandwidth control (higher = narrower)
+        this.bandpassFilter.frequency.value = this.centerFrequency;
+        this.bandpassFilter.Q.value = 2;
 
-        // Limiter to reduce overload/clipping from speaker→mic setups
         this.limiterNode = this.audioContext.createDynamicsCompressor();
-        this.limiterNode.threshold.value = -18; // dB
+        this.limiterNode.threshold.value = -18;
         this.limiterNode.knee.value = 0;
         this.limiterNode.ratio.value = 20;
-        this.limiterNode.attack.value = 0.003; // seconds
-        this.limiterNode.release.value = 0.08; // seconds
+        this.limiterNode.attack.value = 0.003;
+        this.limiterNode.release.value = 0.08;
 
         this.analyserNode = this.audioContext.createAnalyser();
         this.analyserNode.fftSize = 256;
@@ -178,14 +181,15 @@ See the LICENSE file in the repository root for full license text.
         this.scriptNode = this.audioContext.createScriptProcessor(256, 1, 1);
         this.scriptNode.onaudioprocess = this.process.bind(this);
 
-        // Connect: source → bandpass → limiter → analyser → script → destination
         this.sourceNode.connect(this.bandpassFilter);
         this.bandpassFilter.connect(this.limiterNode);
         this.limiterNode.connect(this.analyserNode);
         this.analyserNode.connect(this.scriptNode);
         this.scriptNode.connect(this.audioContext.destination);
 
-        this.offStartTime = performance.now();
+        this.offStartTime = 0;
+        this.onStartTime = 0;
+        this.lastTransitionTime = 0;
       }
 
       stop() {
@@ -199,9 +203,10 @@ See the LICENSE file in the repository root for full license text.
 
       process(event) {
         const input = event.inputBuffer.getChannelData(0);
-        const currentTime = performance.now();
 
-        // Switch between SEARCH/LOCK based on transitions (pileup-friendly)
+        this.sampleTimeMs += (input.length / this.sampleRate) * 1000;
+        const currentTime = this.sampleTimeMs;
+
         if ((currentTime - this.lastTransitionTime) > this.searchAfterMs) {
           this.centerMode = 'search';
         } else {
@@ -220,36 +225,40 @@ See the LICENSE file in the repository root for full license text.
           }
         }
 
-        // Calculate RMS (Root Mean Square) amplitude
         let sum = 0;
         for (let i = 0; i < input.length; i++) {
           sum += input[i] * input[i];
         }
         const rms = Math.sqrt(sum / input.length);
 
-        // Track levels for auto threshold
         this.recentLevels.push(rms);
         if (this.recentLevels.length > this.maxRecentLevels) {
           this.recentLevels.shift();
         }
 
-        // Auto-adjust threshold
         if (this.recentLevels.length >= 50) {
           const sorted = [...this.recentLevels].sort((a, b) => a - b);
           const noise = sorted[Math.floor(sorted.length * 0.3)];
           const signal = sorted[Math.floor(sorted.length * 0.95)];
           this.threshold = Math.max(this.minThreshold,
                                     Math.min(this.maxThreshold,
-                                    noise + (signal - noise) * 0.7)); // Increased from 0.6
+                                    noise + (signal - noise) * 0.7));
         }
 
-        // Hysteresis: use different thresholds for ON and OFF transitions
         const onThreshold = this.threshold;
-        const offThreshold = this.threshold * 0.7; // Lower threshold to turn off
+        const offThreshold = this.threshold * 0.7;
 
-        const signalOn = this.isOn ? (rms > offThreshold) : (rms > onThreshold);
+        const wantOn = rms > onThreshold;
+        const wantOff = rms < offThreshold;
 
-        // Auto reset if stuck ON (cooldown protected)
+        if (!this.isOn) {
+          this.onCandidateFrames = wantOn ? (this.onCandidateFrames + 1) : 0;
+          this.offCandidateFrames = 0;
+        } else {
+          this.offCandidateFrames = wantOff ? (this.offCandidateFrames + 1) : 0;
+          this.onCandidateFrames = 0;
+        }
+
         if (this.isOn && (currentTime - this.onStartTime) > this.stuckOnTimeout) {
           if ((currentTime - this.lastAutoResetTime) > this.autoResetCooldown) {
             this.lastAutoResetTime = currentTime;
@@ -258,53 +267,40 @@ See the LICENSE file in the repository root for full license text.
           }
         }
 
-        // Prevent rapid transitions
         const timeSinceLastTransition = currentTime - this.lastTransitionTime;
         if (timeSinceLastTransition < this.minTransitionInterval) {
-          return; // Too soon, ignore this transition
+          return;
         }
 
-        // State transitions
-        if (signalOn && !this.isOn) {
-          // Signal just turned ON
+        if (!this.isOn && this.onCandidateFrames >= this.onConfirmFrames) {
           this.isOn = true;
+          this.onCandidateFrames = 0;
+
           this.onStartTime = currentTime;
           this.lastTransitionTime = currentTime;
 
-          // Record OFF duration
           const offDuration = currentTime - this.offStartTime;
           this.offDurations.push(offDuration);
 
-          if (this.onStateChange) {
-            this.onStateChange(true, rms, this.threshold);
-          }
+          if (this.onStateChange) this.onStateChange(true, rms, this.threshold);
+          if (this.onTiming) this.onTiming(offDuration, false);
 
-          if (this.onTiming) {
-            this.onTiming(offDuration, false);
-          }
-
-        } else if (!signalOn && this.isOn) {
-          // Signal just turned OFF
+        } else if (this.isOn && this.offCandidateFrames >= this.offConfirmFrames) {
           this.isOn = false;
+          this.offCandidateFrames = 0;
+
           this.offStartTime = currentTime;
           this.lastTransitionTime = currentTime;
 
-          // Record ON duration
           const onDuration = currentTime - this.onStartTime;
           this.onDurations.push(onDuration);
 
-          if (this.onStateChange) {
-            this.onStateChange(false, rms, this.threshold);
-          }
-
-          if (this.onTiming) {
-            this.onTiming(onDuration, true);
-          }
+          if (this.onStateChange) this.onStateChange(false, rms, this.threshold);
+          if (this.onTiming) this.onTiming(onDuration, true);
         }
       }
     }
 
-    // Morse decoder with clear logic
     class SimpleMorseDecoder {
       constructor({ onChar, onWord }) {
         this.onChar = onChar;
@@ -313,41 +309,40 @@ See the LICENSE file in the repository root for full license text.
         this.currentCode = "";
         this.currentWord = "";
 
-        // Timing parameters (ms)
-        this.ditLength = 60; // Start with 20 WPM (1200/20 = 60ms)
+        this.ditLength = 60;
         this.updateTimings();
 
-        // Adaptive timing
         this.recentDits = [];
         this.recentDahs = [];
         this.maxSamples = 20;
 
-        // Timeout for word completion
         this.wordTimeout = null;
         this.charTimeout = null;
+
+        this.minDitMs = 25;
+        this.maxDitMs = 140;
+        this.ditAdaptMinSamples = 8;
+        this.ditAdaptAlpha = 0.05;
+        this.ditAdaptDeltaMs = 20;
       }
 
       updateTimings() {
-        // Based on dit length, calculate thresholds
-        // Standard: element gap = 1 dit, char gap = 3 dits, word gap = 7 dits
         this.ditDahBoundary = this.ditLength * 2;
-        this.elementCharBoundary = this.ditLength * 2.2; // Increased - must be clearly longer than 1 dit
+
+        // CHANGED: more tolerant char-gap boundary (prevents splitting long chars like "8")
+        this.elementCharBoundary = this.ditLength * 2.8;
+
         this.charWordBoundary = this.ditLength * 4.5;
       }
 
       addTiming(duration, isOn) {
-        // Clear timeouts
         if (this.wordTimeout) clearTimeout(this.wordTimeout);
         if (this.charTimeout) clearTimeout(this.charTimeout);
 
         if (isOn) {
-          // CRITICAL FIX: Ignore very short noise bursts
-          const minSignalDuration = 30; // Increased from 20ms to filter more noise
-          if (duration < minSignalDuration) {
-            return; // Ignore this signal
-          }
+          const minSignalDuration = 30;
+          if (duration < minSignalDuration) return;
 
-          // This is a dit or dah
           const isDit = duration < this.ditDahBoundary;
 
           if (isDit) {
@@ -360,45 +355,32 @@ See the LICENSE file in the repository root for full license text.
             if (this.recentDahs.length > this.maxSamples) this.recentDahs.shift();
           }
 
-          // Adapt timing - but only use reasonable samples
-          if (this.recentDits.length >= 5) {
-            // Filter out outliers before calculating average
+          if (this.recentDits.length >= this.ditAdaptMinSamples) {
             const sorted = [...this.recentDits].sort((a, b) => a - b);
-            // Use median instead of mean to reject outliers
             const median = sorted[Math.floor(sorted.length / 2)];
+            const clamped = Math.max(this.minDitMs, Math.min(this.maxDitMs, median));
 
-            if (Math.abs(median - this.ditLength) > 15) {
-              this.ditLength = this.ditLength * 0.9 + median * 0.1; // Slow adaptation
+            if (Math.abs(clamped - this.ditLength) > this.ditAdaptDeltaMs) {
+              this.ditLength = this.ditLength * (1 - this.ditAdaptAlpha) + clamped * this.ditAdaptAlpha;
               this.updateTimings();
             }
           }
 
         } else {
-          // This is a space
+          const minGapDuration = 20;
+          if (duration < minGapDuration) return;
 
-          // Filter out very short gaps (noise)
-          const minGapDuration = 20; // Ignore gaps shorter than 20ms
-          if (duration < minGapDuration) {
-            return;
-          }
-
-          // Only process spacing if we have some morse code
           if (this.currentCode.length > 0) {
             if (duration >= this.charWordBoundary) {
-              // Word space
               this.completeCharacter();
               this.completeWord();
             } else if (duration >= this.elementCharBoundary) {
-              // Character space
               this.completeCharacter();
-              // Set timeout for word completion
               this.wordTimeout = setTimeout(() => this.completeWord(), this.charWordBoundary);
             }
-            // else: element space, do nothing
           }
         }
 
-        // Safety timeout - complete character if nothing happens for a while
         this.charTimeout = setTimeout(() => {
           this.completeCharacter();
           this.completeWord();
@@ -407,31 +389,20 @@ See the LICENSE file in the repository root for full license text.
 
       completeCharacter() {
         if (this.currentCode.length === 0) return;
-
         const char = MORSE_TO_TEXT[this.currentCode] || '?';
         this.currentWord += char;
-
-        if (this.onChar) {
-          this.onChar(char);
-        }
-
+        if (this.onChar) this.onChar(char);
         this.currentCode = "";
       }
 
       completeWord() {
         this.completeCharacter();
-
         if (this.currentWord.length === 0) return;
-
-        if (this.onWord) {
-          this.onWord(this.currentWord);
-        }
-
+        if (this.onWord) this.onWord(this.currentWord);
         this.currentWord = "";
       }
     }
 
-    // UI Integration
     let detector = null;
     let decoder = null;
     let running = false;
@@ -450,7 +421,6 @@ See the LICENSE file in the repository root for full license text.
     });
 
     startBtn.addEventListener("click", async () => {
-      // If embedded browser, show guidance instead of failing silently
       if (!running && isLikelyInAppBrowser) {
         showOpenInBrowserHelp();
         return;
@@ -458,14 +428,10 @@ See the LICENSE file in the repository root for full license text.
 
       if (!running) {
         try {
-          // Immediate feedback (so it doesn't look like the button did nothing)
           statusEl.textContent = "Requesting microphone…";
           statusEl.style.color = "#aaa";
-
-          // Clear display
           overlay.textContent = "";
 
-          // Create decoder
           decoder = new SimpleMorseDecoder({
             onChar: (char) => {
               overlay.textContent += char;
@@ -477,7 +443,6 @@ See the LICENSE file in the repository root for full license text.
             }
           });
 
-          // Create detector
           detector = new SimpleEnvelopeDetector();
           detector.onStateChange = (isOn, level, threshold) => {
             statusEl.textContent = isOn ? '🔴 Signal' : '⚪ Listening';
@@ -499,7 +464,6 @@ See the LICENSE file in the repository root for full license text.
         } catch (error) {
           console.error("Error:", error);
 
-          // If mic fails (common in in-app browsers), show guidance
           if (isLikelyInAppBrowser) {
             showOpenInBrowserHelp();
           } else {
