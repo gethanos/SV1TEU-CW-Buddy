@@ -44,6 +44,7 @@ const templates = {
     "{DX} DE {MY} UR RST {RST} {RST} KN",
     "{NAME_LINE}",
     "{QTH_LINE}",
+    "{RIG_LINE}",
     "{INFO_END_FORMAL}",
     "TNX FER QSO {DX} DE {MY} 73 SK"
   ]
@@ -184,9 +185,16 @@ function updateOutput() {
             return true;
         });
 
-    // Add HW CPY line if checked
+    // Add HW CPY line if checked (place it BEFORE the first TNX line)
     if (document.getElementById('hwcpy').checked) {
-        lines.push(`HW CPY? ${data.DX} DE ${data.MY} KN`);
+        const hwLine = `HW CPY? ${data.DX} DE ${data.MY} KN`;
+
+        const tnxIndex = lines.findIndex(l => l.trim().toUpperCase().startsWith('TNX'));
+        if (tnxIndex >= 0) {
+            lines.splice(tnxIndex, 0, hwLine);
+        } else {
+            lines.push(hwLine);
+        }
     }
 
     // Final filter to remove any empty lines
