@@ -80,6 +80,68 @@ See the LICENSE file in the repository root for full license text.
         // Auto threshold
         this.recentLevels = [];
         this.maxRecentLevels = 100;
+
+        // Auto recalibration
+        this.lastAutoResetTime = 0;
+        this.autoResetCooldown = 10000; // ms
+        this.stuckOnTimeout = 2500; // ms
+
+        // Auto-centering (FFT peak detect)
+        this.centerMode = 'search'; // 'search' | 'lock'
+        this.searchAfterMs = 1200;
+        this.lastFftUpdateTime = 0;
+        this.fftUpdateInterval = 350; // ms
+        this.minToneHz = 400;
+        this.maxToneHz = 900;
+        this.centerFrequency = 650;
+        this.freqSmoothing = 0.15; // only used in search mode
+        this.freqData = null;
+      }
+
+      resetCalibration() {
+        const now = performance.now();
+        this.threshold = 0.03;
+        this.recentLevels = [];
+        this.isOn = false;
+        this.onStartTime = now;
+        this.offStartTime = now;
+        this.lastTransitionTime = now;
+
+        this.centerMode = 'search';
+
+        if (this.onStateChange) {
+          this.onStateChange(false, 0, this.threshold);
+        }
+      }
+
+      estimateToneFrequencyHz() {
+        if (!this.analyserNode) return null;
+
+        if (!this.freqData || this.freqData.length !== this.analyserNode.frequencyBinCount) {
+          this.freqData = new Float32Array(this.analyserNode.frequencyBinCount);
+        }
+
+        this.analyserNode.getFloatFrequencyData(this.freqData);
+
+        const nyquist = this.audioContext.sampleRate / 2;
+        const binHz = nyquist / this.freqData.length;
+
+        const startBin = Math.max(0, Math.floor(this.minToneHz / binHz));
+        const endBin = Math.min(this.freqData.length - 1, Math.ceil(this.maxToneHz / binHz));
+
+        let bestBin = -1;
+        let bestDb = -Infinity;
+
+        for (let i = startBin; i <= endBin; i++) {
+          const db = this.freqData[i];
+          if (db > bestDb) {
+            bestDb = db;
+            bestBin = i;
+          }
+        }
+
+        if (bestBin < 0) return null;
+        return bestBin * binHz;
       }
 
       async start() {
@@ -98,7 +160,7 @@ See the LICENSE file in the repository root for full license text.
         // Add bandpass filter for CW frequency range (400-900 Hz)
         this.bandpassFilter = this.audioContext.createBiquadFilter();
         this.bandpassFilter.type = 'bandpass';
-        this.bandpassFilter.frequency.value = 650; // Center frequency
+        this.bandpassFilter.frequency.value = this.centerFrequency; // Center frequency
         this.bandpassFilter.Q.value = 2; // Bandwidth control (higher = narrower)
 
         // Limiter to reduce overload/clipping from speaker→mic setups
@@ -139,6 +201,25 @@ See the LICENSE file in the repository root for full license text.
         const input = event.inputBuffer.getChannelData(0);
         const currentTime = performance.now();
 
+        // Switch between SEARCH/LOCK based on transitions (pileup-friendly)
+        if ((currentTime - this.lastTransitionTime) > this.searchAfterMs) {
+          this.centerMode = 'search';
+        } else {
+          this.centerMode = 'lock';
+        }
+
+        if (this.centerMode === 'search' && this.bandpassFilter && this.analyserNode && this.audioContext) {
+          if ((currentTime - this.lastFftUpdateTime) >= this.fftUpdateInterval) {
+            this.lastFftUpdateTime = currentTime;
+
+            const toneHz = this.estimateToneFrequencyHz();
+            if (toneHz) {
+              this.centerFrequency = this.centerFrequency * (1 - this.freqSmoothing) + toneHz * this.freqSmoothing;
+              this.bandpassFilter.frequency.value = this.centerFrequency;
+            }
+          }
+        }
+
         // Calculate RMS (Root Mean Square) amplitude
         let sum = 0;
         for (let i = 0; i < input.length; i++) {
@@ -167,6 +248,15 @@ See the LICENSE file in the repository root for full license text.
         const offThreshold = this.threshold * 0.7; // Lower threshold to turn off
 
         const signalOn = this.isOn ? (rms > offThreshold) : (rms > onThreshold);
+
+        // Auto reset if stuck ON (cooldown protected)
+        if (this.isOn && (currentTime - this.onStartTime) > this.stuckOnTimeout) {
+          if ((currentTime - this.lastAutoResetTime) > this.autoResetCooldown) {
+            this.lastAutoResetTime = currentTime;
+            this.resetCalibration();
+            return;
+          }
+        }
 
         // Prevent rapid transitions
         const timeSinceLastTransition = currentTime - this.lastTransitionTime;
@@ -346,6 +436,19 @@ See the LICENSE file in the repository root for full license text.
     let decoder = null;
     let running = false;
 
+    const resetBtn = document.createElement("button");
+    resetBtn.type = "button";
+    resetBtn.id = "cwResetBtn";
+    resetBtn.textContent = "Reset";
+    resetBtn.style.marginLeft = "10px";
+    resetBtn.disabled = true;
+
+    startBtn.insertAdjacentElement("afterend", resetBtn);
+
+    resetBtn.addEventListener("click", () => {
+      if (detector) detector.resetCalibration();
+    });
+
     startBtn.addEventListener("click", async () => {
       // If embedded browser, show guidance instead of failing silently
       if (!running && isLikelyInAppBrowser) {
@@ -387,6 +490,7 @@ See the LICENSE file in the repository root for full license text.
           await detector.start();
 
           running = true;
+          resetBtn.disabled = false;
           startBtn.classList.add("active");
           startBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> Stop';
           statusEl.textContent = '⚪ Listening (400-900 Hz)';
@@ -408,6 +512,7 @@ See the LICENSE file in the repository root for full license text.
         decoder.completeWord();
 
         running = false;
+        resetBtn.disabled = true;
         startBtn.classList.remove("active");
         startBtn.innerHTML = '<i class="fas fa-microphone"></i> Decode';
         statusEl.textContent = "stopped";
