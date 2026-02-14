@@ -97,7 +97,7 @@ See the LICENSE file in the repository root for full license text.
         this.lastStableFrequency = 700;
         this.frequencyJumpThreshold = 80;
         this.frequencyStableCounter = 0;
-        this.minStableSamples = 1; 
+        this.minStableSamples = 1;
         
         this.currentQ = 1.0;
         this.targetQ = 1.0;
@@ -443,13 +443,13 @@ See the LICENSE file in the repository root for full license text.
         // FAST ADAPTATION
         this.ditSamples = [];
         this.dahSamples = [];
-        this.maxSamples = 5;
+        this.maxSamples = 4;
         
         this.charTimeout = null;
         this.wordTimeout = null;
         this.maxCodeLength = 6;
         
-        this.adaptationSpeed = 0.4;
+        this.adaptationSpeed = 0.55;
         this.signalCount = 0;
 
         if (this.onDebug) {
@@ -492,6 +492,10 @@ See the LICENSE file in the repository root for full license text.
         }
         
         let rawWPM = Math.round(1200 / this.ditLength);
+        // Add a small bias toward higher speeds (20-22 WPM range)
+        if (rawWPM < 18 && this.ditLength > 50) {
+          rawWPM = Math.min(22, rawWPM + 2);
+        }
         this.estimatedWPM = Math.max(this.minWPM, Math.min(this.maxWPM, rawWPM));
         
         this.signalCount++;
