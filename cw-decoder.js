@@ -7,9 +7,9 @@ See the LICENSE file in the repository root for full license text.
 
 (() => {
   document.addEventListener("DOMContentLoaded", () => {
-    const overlay = document.getElementById("cwDecodedOverlay");
-    const startBtn = document.getElementById("cwStartBtn");
-    const statusEl = document.getElementById("cwStatus");
+    let overlay = document.getElementById("cwDecodedOverlay");
+    let startBtn = document.getElementById("cwStartBtn");
+    let statusEl = document.getElementById("cwStatus");
 
     if (!overlay || !startBtn || !statusEl) {
       console.warn("CW decoder UI not found, skipping init.");
@@ -93,9 +93,8 @@ See the LICENSE file in the repository root for full license text.
         this.freqHistory = [];
         this.maxFreqHistory = 3;
         
-        // Auto-reset on frequency jump
         this.lastStableFrequency = 700;
-        this.frequencyJumpThreshold = 80;
+        this.frequencyJumpThreshold = 150;
         this.frequencyStableCounter = 0;
         this.minStableSamples = 1;
         
@@ -282,10 +281,16 @@ See the LICENSE file in the repository root for full license text.
               if (freqChange > this.frequencyJumpThreshold) {
                 this.frequencyStableCounter++;
                 if (this.frequencyStableCounter >= this.minStableSamples) {
-                  this.resetCalibration();
-                  this.centerFrequency = avgFreq;
-                  this.lastStableFrequency = avgFreq;
-                  this.bandpassFilter.frequency.value = this.centerFrequency;
+                  if (Math.abs(avgFreq - this.lastStableFrequency) < 200) {
+                    this.centerFrequency = this.centerFrequency * 0.5 + avgFreq * 0.5;
+                    this.lastStableFrequency = this.centerFrequency;
+                    this.bandpassFilter.frequency.value = this.centerFrequency;
+                  } else {
+                    this.resetCalibration();
+                    this.centerFrequency = avgFreq;
+                    this.lastStableFrequency = avgFreq;
+                    this.bandpassFilter.frequency.value = this.centerFrequency;
+                  }
                   this.frequencyStableCounter = 0;
                   return;
                 }
@@ -420,97 +425,61 @@ See the LICENSE file in the repository root for full license text.
       }
     }
 
-    // FAST-ADAPTING DECODER
-    class InstantStartDecoder {
-      constructor({ onChar, onWord, onDebug }) {
+    // ADAPTIVE DECODER - With per-transmission scoring for pileups
+    class AdaptiveDecoder {
+      constructor({ onChar, onWord, wpm }) {
         this.onChar = onChar;
         this.onWord = onWord;
-        this.onDebug = onDebug;
-
+        
+        this.wpm = wpm;
+        this.ditLength = 1200 / wpm;
+        this.dahLength = this.ditLength * 3;
+        this.boundary = (this.ditLength + this.dahLength) / 2;
+        
         this.currentCode = "";
         this.currentWord = "";
-
-        // Start with reasonable defaults for 18 WPM
-        this.ditLength = 67;  // 18 WPM default
-        this.dahLength = 200; // Estimated dah length
-        this.boundary = 120;  // Midpoint between dit and dah
-        this.estimatedWPM = 18;
-        
-        // WPM constraints
-        this.minWPM = 12;
-        this.maxWPM = 40;
-        
-        // FAST ADAPTATION
-        this.ditSamples = [];
-        this.dahSamples = [];
-        this.maxSamples = 4;
+        this.currentTransmission = "";
+        this.transmissionScore = 0;
+        this.maxCodeLength = 6;
         
         this.charTimeout = null;
         this.wordTimeout = null;
-        this.maxCodeLength = 6;
+        this.transmissionTimeout = null;
         
-        this.adaptationSpeed = 0.55;
-        this.signalCount = 0;
-
-        if (this.onDebug) {
-          this.onDebug(`INSTANT START at 18 WPM (fast adapting...)`);
-        }
+        // Adaptive gap thresholds
+        this.gapSamples = [];
+        this.maxGapSamples = 10;
+        this.charGapMin = this.ditLength * 2.5;
+        this.wordGapMin = this.ditLength * 6.0;
+        this.transmissionGapMin = this.ditLength * 15.0;
+        
+        // Full output (never reset)
+        this.fullOutput = "";
       }
 
-      fastAdapt(duration, isDit) {
-        if (isDit) {
-          if (this.ditSamples.length === 0) {
-            this.ditLength = duration;
-          } else {
-            this.ditLength = this.ditLength * (1 - this.adaptationSpeed) + 
-                             duration * this.adaptationSpeed;
-          }
-          
-          this.ditSamples.push(duration);
-          if (this.ditSamples.length > this.maxSamples) {
-            this.ditSamples.shift();
-          }
-          
-        } else {
-          if (this.dahSamples.length === 0) {
-            this.dahLength = duration;
-          } else {
-            this.dahLength = this.dahLength * (1 - this.adaptationSpeed) + 
-                             duration * this.adaptationSpeed;
-          }
-          
-          this.dahSamples.push(duration);
-          if (this.dahSamples.length > this.maxSamples) {
-            this.dahSamples.shift();
-          }
-        }
+      updateGapThresholds() {
+        if (this.gapSamples.length < 5) return;
         
-        if (this.ditSamples.length > 0 && this.dahSamples.length > 0) {
-          this.boundary = (this.ditLength + this.dahLength) / 2;
-        } else if (this.ditSamples.length > 0) {
-          this.boundary = this.ditLength * 2;
-        }
+        const sortedGaps = [...this.gapSamples].sort((a, b) => a - b);
+        const medianGap = sortedGaps[Math.floor(sortedGaps.length / 2)];
+        const estimatedDit = medianGap / 3;
         
-        let rawWPM = Math.round(1200 / this.ditLength);
-        // Add a small bias toward higher speeds (20-22 WPM range)
-        if (rawWPM < 18 && this.ditLength > 50) {
-          rawWPM = Math.min(22, rawWPM + 2);
-        }
-        this.estimatedWPM = Math.max(this.minWPM, Math.min(this.maxWPM, rawWPM));
+        this.charGapMin = estimatedDit * 2.2;
+        this.wordGapMin = estimatedDit * 5.5;
+        this.transmissionGapMin = estimatedDit * 15.0;
         
-        this.signalCount++;
-        if (this.signalCount % 2 === 0 && this.onDebug) {
-          this.onDebug(`${this.estimatedWPM}WPM | dit=${Math.round(this.ditLength)}ms`);
-        }
+        this.charGapMin = Math.max(this.charGapMin, this.ditLength * 2.0);
+        this.wordGapMin = Math.max(this.wordGapMin, this.ditLength * 5.0);
+        this.transmissionGapMin = Math.max(this.transmissionGapMin, this.ditLength * 12.0);
       }
 
       addTiming(duration, isSignal) {
         if (this.charTimeout) clearTimeout(this.charTimeout);
         if (this.wordTimeout) clearTimeout(this.wordTimeout);
+        if (this.transmissionTimeout) clearTimeout(this.transmissionTimeout);
 
         if (isSignal) {
           const isDit = duration < this.boundary;
-          this.fastAdapt(duration, isDit);
           
           if (isDit) {
             this.currentCode += ".";
@@ -523,26 +492,43 @@ See the LICENSE file in the repository root for full license text.
           }
           
         } else {
+          if (this.currentCode.length > 0) {
+            this.gapSamples.push(duration);
+            if (this.gapSamples.length > this.maxGapSamples) {
+              this.gapSamples.shift();
+            }
+            
+            if (this.gapSamples.length % 3 === 0) {
+              this.updateGapThresholds();
+            }
+          }
+          
           if (this.currentCode.length === 0) return;
 
-          const charGapMin = this.ditLength * 2.0;
-          const wordGapMin = this.ditLength * 5.0;
-
-          if (duration >= wordGapMin) {
+          // Transmission end detection (long gap)
+          if (duration >= this.transmissionGapMin) {
             this.completeCharacter();
             this.completeWord();
-          } else if (duration >= charGapMin) {
+            this.completeTransmission();
+          }
+          else if (duration >= this.wordGapMin) {
+            this.completeCharacter();
+            this.completeWord();
+          } 
+          else if (duration >= this.charGapMin) {
             this.completeCharacter();
             const wordTimeout = this.ditLength * 8;
             this.wordTimeout = setTimeout(() => this.completeWord(), wordTimeout);
           }
         }
 
+        // Safety timeouts
         const safetyTimeout = this.ditLength * 15;
         this.charTimeout = setTimeout(() => {
           this.completeCharacter();
           this.completeWord();
         }, safetyTimeout);
+        
       }
 
       completeCharacter() {
@@ -552,80 +538,344 @@ See the LICENSE file in the repository root for full license text.
         
         if (char) {
           this.currentWord += char;
-          if (this.onChar) {
-            this.onChar(char, this.currentCode);
+          this.fullOutput += char;
+          this.currentTransmission += char;
+          
+          // FIX: Trim fullOutput to prevent memory growth
+          if (this.fullOutput.length > 500) {
+            this.fullOutput = this.fullOutput.slice(-500);
           }
         } else {
           this.currentWord += "?";
-          if (this.onChar) {
-            this.onChar("?", this.currentCode);
+          this.fullOutput += "?";
+          this.currentTransmission += "?";
+          
+          // FIX: Trim fullOutput to prevent memory growth
+          if (this.fullOutput.length > 500) {
+            this.fullOutput = this.fullOutput.slice(-500);
           }
         }
         
         this.currentCode = "";
       }
 
+      scoreWord(word) {
+        if (word.length === 0) return 0;
+        
+        let wordScore = 0;
+        
+        // Heavy penalty for errors
+        const questionMarks = (word.match(/\?/g) || []).length;
+        if (questionMarks > 0) {
+          wordScore -= questionMarks * 50;
+        } else if (word.length >= 3) {
+          // Reward clean words heavily
+          wordScore += 40;
+        }
+        
+        // Callsign pattern (critical for pileups)
+        if (questionMarks === 0 && /[A-Z]/.test(word) && /[0-9]/.test(word) && 
+            word.length >= 3 && word.length <= 10) {
+          wordScore += 80; // Very high weight
+        }
+        
+        // Q-codes
+        if (word.length >= 3 && word.length <= 4 && word[0] === 'Q' && questionMarks === 0) {
+          wordScore += 60;
+        }
+        
+        // Common procedural words
+        const procedures = ['CQ', 'DE', 'PSE', 'K', 'BK', 'AR', 'SK', 'TU', 'TNX', 'AGN'];
+        if (procedures.includes(word)) wordScore += 50;
+        
+        // RST
+        if (/^[1-5][1-9][1-9]$/.test(word)) wordScore += 60;
+        if (word === 'RST') wordScore += 50;
+        
+        // Signal reports
+        if (/^5[789]9?$/.test(word)) wordScore += 40;
+        
+        // Common words
+        const commonWords = ['INFO', 'NAME', 'QTH', 'NR', 'UR', 'TEST', 'CONTEST'];
+        if (commonWords.includes(word)) wordScore += 45;
+        
+        // SOTA/POTA patterns
+        if (word.length >= 4 && /[A-Z]{2}\/[A-Z]{2}-[0-9]{3}/.test(word)) wordScore += 70;
+        if (word.length >= 4 && word.slice(-3) === 'OTA' && /[A-Z]/.test(word[0])) wordScore += 60;
+        
+        // Numbers and signal reports
+        if (/^[0-9]{3}$/.test(word)) wordScore += 25;
+        if (word === '73') wordScore += 35;
+        if (word === '88') wordScore += 35;
+        
+        return Math.max(-100, wordScore); // Allow negative scores
+      }
+
       completeWord() {
         this.completeCharacter();
         if (this.currentWord.length === 0) return;
+        
+        const word = this.currentWord;
+        this.fullOutput += " ";
+        this.currentTransmission += " ";
+        
+        // FIX: Trim fullOutput after adding space
+        if (this.fullOutput.length > 500) {
+          this.fullOutput = this.fullOutput.slice(-500);
+        }
+        
+        // Add to transmission score
+        const wordScore = this.scoreWord(word);
+        this.transmissionScore += wordScore;
+        
         if (this.onWord) {
-          this.onWord(this.currentWord);
+          this.onWord(word, wordScore);
         }
         this.currentWord = "";
       }
 
-      forceComplete() {
+      completeTransmission() {
         this.completeCharacter();
         this.completeWord();
+        
+        if (this.currentTransmission.trim().length === 0) return;
+        
+        // Return the score for this transmission
+        const finalScore = this.transmissionScore;
+        
+        // Reset for next transmission
+        this.currentTransmission = "";
+        this.transmissionScore = 0;
+        
+        return finalScore;
+      }
+
+      getTransmissionScore() {
+        // Get current ongoing transmission score
+        return this.transmissionScore;
+      }
+
+      forceComplete() {
+        return this.completeTransmission();
       }
 
       reset() {
-        this.ditSamples = [];
-        this.dahSamples = [];
-        this.ditLength = 67;
-        this.dahLength = 200;
-        this.boundary = 120;
-        this.estimatedWPM = 18;
-        this.currentCode = "";
-        this.currentWord = "";
-        this.signalCount = 0;
+        // Preserve output, just reset current transmission
+        this.currentTransmission = "";
+        this.transmissionScore = 0;
+      }
+    }
+
+    // MULTI DECODER with instant per-transmission scoring for pileups
+    class MultiDecoder {
+      constructor({ onSmartWord }) {
+        this.onSmartWord = onSmartWord;
+        
+        // Wide WPM spacing
+        const wpmValues = [5, 8, 12, 15, 18, 21, 24, 27, 30, 33];
+        
+        this.decoders = [];
+        for (let wpm of wpmValues) {
+          this.decoders.push({
+            wpm: wpm,
+            decoder: new AdaptiveDecoder({ 
+              onChar: null, 
+              onWord: (word, wordScore) => this.handleWord(wpm, word, wordScore),
+              wpm: wpm 
+            })
+          });
+        }
+        
+        this.smartOutput = "";
+        this.bestDecoderIndex = 3; // Start at 15 WPM
+        
+        // Instant evaluation - no time window
+        this.currentBestScore = 0;
+        this.scoreThreshold = 50; // Minimum score to consider valid
+        this.lastScores = {};
+        
+        // Sticky decoder tracking
+        this.stickyDecoderIndex = null;  // Track established decoder
+        this.wordsFromSticky = 0;         // Count words from sticky decoder
+        this.minStickyWords = 5;          // Must have 5 good words to become sticky
+        
+        // Initialize scores
+        for (let d of this.decoders) {
+          this.lastScores[d.wpm] = 0;
+        }
       }
 
-      getStats() {
-        return {
-          estimatedWPM: this.estimatedWPM,
-          ditLength: Math.round(this.ditLength),
-          dahLength: Math.round(this.dahLength),
-          boundary: Math.round(this.boundary),
-          ditSamples: this.ditSamples.length
-        };
+      handleWord(wpm, word, wordScore) {
+        // Find which decoder this is
+        const decoderIndex = this.decoders.findIndex(d => d.wpm === wpm);
+        
+        // ALWAYS output from the decoder that currently has the best score
+        // Re-evaluate which is best right now
+        let currentBestScore = -Infinity;
+        let currentBestIndex = 3; // Default 15 WPM
+        
+        for (let i = 0; i < this.decoders.length; i++) {
+          const score = this.decoders[i].decoder.getTransmissionScore();
+          this.lastScores[this.decoders[i].wpm] = score;
+          
+          if (score > currentBestScore) {
+            currentBestScore = score;
+            currentBestIndex = i;
+          }
+        }
+        
+        const myCurrentScore = this.decoders[this.bestDecoderIndex].decoder.getTransmissionScore();
+        
+        // Sticky decoder logic
+        if (this.stickyDecoderIndex !== null && this.stickyDecoderIndex === this.bestDecoderIndex) {
+          // We have an established decoder - only switch if it's doing really badly
+          if (myCurrentScore < -100 && currentBestScore > myCurrentScore + 150) {
+            // Current decoder is failing hard, and new one is much better
+            this.bestDecoderIndex = currentBestIndex;
+            this.stickyDecoderIndex = null;
+            this.wordsFromSticky = 0;
+          }
+          // Otherwise stay with sticky decoder even if scores are equal or slightly worse
+        } else {
+          // Normal switching logic - FIXED: changed from percentage to absolute +30
+          if (currentBestScore > this.scoreThreshold && currentBestScore > myCurrentScore + 30) {
+            // New decoder is 30 points better and above threshold
+            this.bestDecoderIndex = currentBestIndex;
+            this.stickyDecoderIndex = null;
+            this.wordsFromSticky = 0;
+          } else if (myCurrentScore < 0 && currentBestScore > myCurrentScore) {
+            // Current decoder is failing, switch to anything better
+            this.bestDecoderIndex = currentBestIndex;
+            this.stickyDecoderIndex = null;
+            this.wordsFromSticky = 0;
+          }
+        }
+        
+        // Track if this decoder should become sticky
+        if (decoderIndex === this.bestDecoderIndex) {
+          this.wordsFromSticky++;
+          if (this.wordsFromSticky >= this.minStickyWords && myCurrentScore > 200) {
+            // This decoder has produced 5+ good words with high score - make it sticky
+            this.stickyDecoderIndex = this.bestDecoderIndex;
+          }
+        }
+        
+        // Now output from the best decoder
+        if (decoderIndex === this.bestDecoderIndex) {
+          if (this.onSmartWord) {
+            this.onSmartWord(word);
+          }
+          this.smartOutput += word + " ";
+          
+          // Trim smartOutput to prevent memory growth
+          if (this.smartOutput.length > 500) {
+            this.smartOutput = this.smartOutput.slice(-500);
+          }
+        }
+      }
+
+      addTiming(duration, isSignal) {
+        for (let d of this.decoders) {
+          d.decoder.addTiming(duration, isSignal);
+        }
+      }
+
+      getAllOutputs(showAllDecoders) {
+        let display = "";
+        
+        // Smart decoder output (always shown, no header, SINGLE LINE)
+        if (this.smartOutput.length > 200) {
+          this.smartOutput = this.smartOutput.slice(-200);
+        }
+        // Remove any newlines and trim to ensure single line
+        display += this.smartOutput.replace(/\n/g, ' ').trim();
+        
+        // All decoders output (only if checkbox is checked)
+        if (showAllDecoders) {
+          const stickyWPM = this.stickyDecoderIndex !== null ? 
+            this.decoders[this.stickyDecoderIndex].wpm : null;
+          const stickyInfo = stickyWPM ? ` [LOCKED to ${stickyWPM} WPM]` : "";
+          
+          display += `\n\n=== ALL DECODERS (current transmission score)${stickyInfo} ===\n`;
+          
+          for (let i = 0; i < this.decoders.length; i++) {
+            const d = this.decoders[i];
+            let output = d.decoder.fullOutput;
+            if (output.length > 150) {
+              output = "..." + output.slice(-150);
+            }
+            const score = this.lastScores[d.wpm] || 0;
+            const isSticky = (this.stickyDecoderIndex === i);
+            const marker = (i === this.bestDecoderIndex) ? (isSticky ? "🔒 " : "→ ") : "  ";
+            display += `${marker}${d.wpm} WPM [${score}]: ${output}\n`;
+          }
+        }
+        
+        return display;
+      }
+
+      forceComplete() {
+        for (let d of this.decoders) {
+          d.decoder.forceComplete();
+        }
+      }
+
+      reset() {
+        for (let d of this.decoders) {
+          d.decoder.reset();
+        }
       }
     }
 
     // UI
     let detector = null;
-    let decoder = null;
+    let multiDecoder = null;
     let running = false;
+    let displayInterval = null;
 
-    const resetBtn = document.createElement("button");
-    resetBtn.type = "button";
-    resetBtn.textContent = "Reset";
-    resetBtn.style.marginLeft = "10px";
-    resetBtn.disabled = true;
+    // Create UI elements with classes only (no inline styles)
+    const controlsWrapper = document.createElement("div");
+    controlsWrapper.className = "cw-controls-wrapper";
+
+    const statusWrapper = document.createElement("div");
+    statusWrapper.className = "cw-status-wrapper";
+
+    const decoderInfo = document.createElement("span");
+    decoderInfo.className = "cw-decoder-info";
+    decoderInfo.textContent = "Running 10 decoders";
+
+    const checkboxContainer = document.createElement("div");
+    checkboxContainer.className = "cw-checkbox-container";
+
+    const showAllCheckbox = document.createElement("input");
+    showAllCheckbox.type = "checkbox";
+    showAllCheckbox.id = "showAllDecoders";
+    showAllCheckbox.checked = false;
+    
+    const checkboxLabel = document.createElement("label");
+    checkboxLabel.htmlFor = "showAllDecoders";
+    checkboxLabel.textContent = "Show all";
 
     const debugDiv = document.createElement("div");
-    debugDiv.style.cssText = "margin-top: 5px; font-size: 11px; color: #666; font-family: monospace;";
+    debugDiv.className = "cw-debug-info";
+
+    // Assemble UI
+    checkboxContainer.appendChild(showAllCheckbox);
+    checkboxContainer.appendChild(checkboxLabel);
     
-    startBtn.insertAdjacentElement("afterend", resetBtn);
+    statusWrapper.appendChild(decoderInfo);
+    statusWrapper.appendChild(checkboxContainer);
+    
+    controlsWrapper.appendChild(statusWrapper);
+    
+    // Add classes to existing elements
+    startBtn.classList.add("cw-start-btn");
+    startBtn.insertAdjacentElement("afterend", controlsWrapper);
     statusEl.insertAdjacentElement("afterend", debugDiv);
 
-    resetBtn.addEventListener("click", () => {
-      if (detector) detector.resetCalibration();
-      if (decoder) decoder.reset();
-      overlay.textContent += "\n--- RESET ---\n";
-      overlay.scrollTop = overlay.scrollHeight;
-      debugDiv.textContent = "Reset. Ready to decode immediately at 18 WPM default.";
-    });
+    // Add classes to existing elements
+    overlay.classList.add("cw-decoded-overlay");
+    statusEl.classList.add("cw-status-text");
 
     startBtn.addEventListener("click", async () => {
       if (!running && isLikelyInAppBrowser) {
@@ -637,19 +887,10 @@ See the LICENSE file in the repository root for full license text.
         try {
           statusEl.textContent = "Requesting microphone…";
           statusEl.style.color = "#aaa";
-          overlay.textContent = "";
 
-          decoder = new InstantStartDecoder({
-            onChar: (char, code) => {
-              overlay.textContent += char;
-              overlay.scrollTop = overlay.scrollHeight;
-            },
-            onWord: (word) => {
-              overlay.textContent += " ";
-              overlay.scrollTop = overlay.scrollHeight;
-            },
-            onDebug: (msg) => {
-              debugDiv.textContent = msg;
+          multiDecoder = new MultiDecoder({
+            onSmartWord: (word) => {
+              // Smart word output is handled in getAllOutputs
             }
           });
 
@@ -658,26 +899,44 @@ See the LICENSE file in the repository root for full license text.
           detector.onStateChange = (isOn, level, threshold) => {
             const freq = detector.centerFrequency.toFixed(0);
             statusEl.textContent = isOn ? `🔴 ${freq}Hz` : `⚪ ${freq}Hz`;
-            statusEl.style.color = isOn ? 'red' : 'green';
+            statusEl.style.color = isOn ? '#f44' : '#0f0';
           };
           
           detector.onTiming = (duration, isSignal) => {
-            decoder.addTiming(duration, isSignal);
+            if (multiDecoder) {
+              multiDecoder.addTiming(duration, isSignal);
+            }
           };
 
-          detector.onReset = () => {
-            decoder.reset();
-          };
+          detector.onReset = () => {};
 
           await detector.start();
 
           running = true;
-          resetBtn.disabled = false;
           startBtn.classList.add("active");
           startBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> Stop';
           statusEl.textContent = '⚪ Ready';
-          statusEl.style.color = 'green';
-          debugDiv.textContent = "INSTANT START at 18 WPM (fast adapting...)";
+          statusEl.style.color = '#0f0';
+          debugDiv.textContent = ""; // Clear debug info
+
+          // Update the full overlay with all decoders
+          displayInterval = setInterval(() => {
+            if (multiDecoder) {
+              overlay.textContent = multiDecoder.getAllOutputs(showAllCheckbox.checked);
+              // Toggle expanded class based on checkbox
+              if (showAllCheckbox.checked) {
+                overlay.classList.add("expanded");
+              } else {
+                overlay.classList.remove("expanded");
+              }
+              // Auto-scroll to the right for horizontal scrolling when in single line mode
+              if (!showAllCheckbox.checked) {
+                overlay.scrollLeft = overlay.scrollWidth;
+              } else {
+                overlay.scrollTop = overlay.scrollHeight;
+              }
+            }
+          }, 500);
 
         } catch (error) {
           console.error("Error:", error);
@@ -685,18 +944,19 @@ See the LICENSE file in the repository root for full license text.
             showOpenInBrowserHelp();
           } else {
             statusEl.textContent = error.message || "microphone error";
-            statusEl.style.color = "red";
+            statusEl.style.color = "#f44";
           }
         }
       } else {
         detector.stop();
-        decoder.forceComplete();
+        if (multiDecoder) multiDecoder.forceComplete();
+        if (displayInterval) clearInterval(displayInterval);
 
         running = false;
-        resetBtn.disabled = true;
         startBtn.classList.remove("active");
         startBtn.innerHTML = '<i class="fas fa-microphone"></i> Decode';
         statusEl.textContent = "stopped";
+        statusEl.style.color = "#aaa";
         debugDiv.textContent = "";
       }
     });
