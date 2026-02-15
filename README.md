@@ -9,6 +9,9 @@ Designed for:
 - Live CW audio playback
 - CW decoding via microphone
 
+## 🚀 SV1TEU CW Buddy v1.7 Released!
+Brand-new CW decoder with multi-speed decoding (5–33 WPM), auto-locking best speed, live frequency tracking, smarter scoring, cleaner UI, and major stability improvements.
+
 ## 🚀 Live Demo
 https://vle.cited.gr/apps/cw
 
