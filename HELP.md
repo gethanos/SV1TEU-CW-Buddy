@@ -3,143 +3,73 @@
 ## 1) QSO Configuration
 
 ### QSO Mode
-Choose how the built-in template is generated:
+Select a QSO style for your contact:
+- **Short (Mid‑QSO overs):** for ongoing contacts, not starting or ending.
+- **Relaxed (Full QSO / Ragchew):** a complete, friendly QSO including info and closing.
+- **Formal (Procedure / Etiquette):** a structured, etiquette-focused flow with explicit handover and closing.
+- **Write your own (Custom):** type any CW exchange lines you want; one per line.
 
-- **Short (Mid‑QSO overs)**: quick “next transmissions” for an ongoing contact (no CQ, no SK).
-- **Relaxed (Full QSO / Ragchew)**: a longer full QSO example with optional NAME / QTH / RIG info and an ending.
-- **Formal (Procedure / Etiquette)**: a more “by-the-book” full QSO style with clear directed handover (KN) and a formal closing.
-- **Write your own (Custom)**: type your own template text (one line per transmission line).
-
-### QSO Template (Write your own / Custom)
-Write **one CW transmission line per line**.
-
-The app replaces placeholders with your station info and removes empty optional lines automatically.
-
-#### Supported placeholders
+### QSO Template Placeholders
+You can use curly-brace codes in templates:
 - `{MY}` = your callsign
-- `{DX}` = remote callsign
-- `{RST}` = RST report (defaults to **5NN** if empty)
+- `{DX}` = the other station’s callsign
+- `{RST}` = signal report (defaults to 5NN if empty)
+- `{NAME}`, `{QTH}`, `{RIG}` = personal info (will be omitted if empty)
+- `{NAME_LINE}`, `{QTH_LINE}`, `{RIG_LINE}` = corresponding lines only shown if filled
 
-Optional fields:
-- `{NAME}` = your name
-- `{QTH}` = your QTH / location
-- `{RIG}` = your rig / power / antenna text
-
-#### Auto-generated optional lines (used by the built-in templates)
-These placeholders expand into complete “worded” lines only if the related field is filled in:
-
-- `{NAME_LINE}` becomes: `NAME <YOURNAME> <YOURNAME>`
-- `{QTH_LINE}` becomes: `QTH <YOURQTH> <YOURQTH>`
-- `{RIG_LINE}` becomes: `RIG <YOURRIG>`
-
-If an optional field is empty, its line is automatically removed from the final output.
-
-#### Prosign / procedure tips (K / KN / BK / SK)
-You can include common procedure markers in your template text:
-
-- **K** = “over” (any station may reply)
-- **KN** = “over to you only” (directed to the station you’re working)
-- **BK** = “break / back to you” (often used in ragchew-style back-and-forth)
-- **SK** = “end of contact”
-
-Tip: If you use optional info lines (`{NAME_LINE}`, `{QTH_LINE}`, `{RIG_LINE}`) you’ll usually want a proper handover afterwards (e.g. `BK` or `KN`) so it feels like a real QSO flow.
+**Procedure hints:** Write `K` (over), `KN` (only you reply), `BK` (break/over), or `SK` (end) anywhere in your lines.
 
 ## 2) Station Information
-Fill in:
 
-- **Your Callsign** (required)
-- **Remote Callsign** (required)
-- **RST Report** (optional; default is 5NN)
-- **Name / QTH / Rig** (optional)
-
-### “Include final HW CPY? line”
-When enabled, it appends this final line:
-
+Fill in your station details and the “DX” station for the template to expand with real info. Check “Include final HW CPY? line” to have this appended at the end:  
 `HW CPY? {DX} DE {MY} KN`
 
-## 3) Expanded Text (right panel)
-Shows the fully expanded QSO text (after placeholders are replaced).
+## 3) Expanded Text Panel
+Shows the result of your template with all details filled in.  
+- **Copy:** Copy the complete QSO text  
+- **Playback:** Listen to the text via browser speech (with adjustable speed)
 
-Buttons / controls:
-- **Copy**: copies the expanded text to clipboard
-- **Playback**:
-  - **Play** reads the expanded text using your browser’s text-to-speech
-  - **Speed** controls reading speed
+## 4) Morse Code Panel
+- Shows your QSO rendered as Morse code (dots/dashes)
+- **Copy:** Copy the Morse code
+- **CW Playback:** Play Morse via browser tone, customize WPM and pitch
 
-## 4) Morse Code (right panel)
-Shows the generated Morse for the expanded text.
+**Tip:** If playback won’t start, interact (click/tap the page)—browsers require a gesture.
 
-Buttons / controls:
-- **Copy**: copies the Morse output to clipboard
-- **Playback**:
-  - **CW Tone** plays Morse as tones
-  - **Speed (WPM)** adjusts Morse speed
-  - **Tone Frequency** adjusts pitch (Hz)
-  - **Play CW / Stop** controls playback
+## 5) CW Decoder (Microphone) — How to Use
 
-Tip: If playback doesn’t start, interact with the page first (some browsers require a user gesture before audio).
+### Quick Start:
+1. Click **Decode** above the “Expanded Text” panel.
+2. Allow the microphone prompt if it appears.
+3. Place a CW signal (audio from speaker, rig, or YouTube) near the mic.
+4. Watch the decoded words appear live in the overlay panel.
 
-## 5) Decode (microphone CW decoder)
-Use the **Decode** button above the “Expanded Text” card.
+**To stop:** Click **Stop** again.
 
-Steps:
-1. Click **Decode**
-2. Allow microphone permission in the browser prompt
-3. Play/receive CW audio near your microphone (best around the CW audio range)
-4. Decoded text appears in the small overlay area
+### Understanding the Decoder Overlay
 
-Tips for better decoding:
-- Use a clear CW tone (not too loud, not distorted)
-- Reduce background noise
-- If possible, use headphones and route audio cleanly (to avoid room echo)
-- Keep a consistent WPM
+- **Live Decoding:** The system listens for CW, auto-detects speed, and decodes the strongest “transmission” live.
+- **Multiple speeds:** The decoder analyzes all common QRQ and QRS speeds (5–33WPM) at once for best accuracy.
+- **Best result only:** By default, you see the “best guess” decoder (most likely and confident result).
+- **Show all decoders:** Check **Show all** to see every decoder’s output and score (handy for tricky signals or learning).
+- **Signal Status:** Visual indicator shows if a CW tone is present and its detected frequency.
+- **Reset:** Use the **Reset** button if the decoder gets “stuck,” out of sync, or you change to a radically different signal.
 
-To stop decoding:
-- Click **Stop**
+### For Best Results
+- Use a clear, steady tone--not too loud, not distorted.
+- Reduce background noise as much as possible.
+- Try headphones or direct feed if room echo or feedback is a problem.
+- Keep a consistent WPM (but the decoder can follow moderate changes).
+- If the overlay issues an “Open in browser” warning, open in Chrome, Firefox, or Safari (not social app browsers) for full microphone access.
 
-### Reset (decoder)
-If decoding becomes unstable over time (for example it appears “stuck” on signal or stops reacting correctly), use **Reset** (next to the Decode/Stop button) while the decoder is running.
+### Troubleshooting
 
-## Troubleshooting
-- **No microphone prompt / not working**: check browser permissions (site settings) and ensure HTTPS.
-- **No audio playback**: your browser may block audio until you click somewhere on the page first.
-- **Decoder inaccurate**: try a cleaner tone, less noise, and consistent speed.
+- **No mic permission?** Check browser settings, ensure HTTPS.
+- **No signal or only dots/garbage?** Disable any “Enhancements” or noise reduction on your microphone input, especially on Windows via _Settings → System → Sound → Input → ‘Audio enhancements’_.
+- **Works on phone/tablet, not Windows?** Usually “speech enhancement” settings are suppressing tones. Disable it in your Windows settings
+- **No output or output stuck?** Hit **Reset**. For persistent issues, reload the page.
+- **Decoder won’t start in Facebook/Instagram?** Tap “⋮” or “Share” and open in a real browser.
 
-## ⚠️ Important: Windows: decoder shows no signal (mic works, but CW tone is “removed”)
+---
 
-If the decoder works on Android/Linux but shows **no signal on Windows**, Windows or the browser is often applying **speech-oriented audio processing** that can suppress steady tones like CW (noise suppression, echo cancellation, “enhancements”, auto gain, etc.).
-
-### Fix 1 — Disable Windows microphone “enhancements”
-1. Open **Settings → System → Sound**
-2. Under **Input**, select the microphone you are using
-3. Turn **Audio enhancements** **Off** (or disable any “Enhancements” / “Signal processing” options)
-4. Also disable options like **Noise suppression**, **Echo cancellation**, **Automatic gain control** if your device driver/control panel exposes them (Realtek, headset software, etc.)
-5. Reload the page and try decoding again
-
-### Fix 2 — Disable browser/driver noise suppression features (if available)
-Some headsets/webcams and software suites apply additional processing even when Windows enhancements are off. If you have tools like **Realtek Audio Console**, headset vendor apps, **Krisp**, Discord/Teams processing, etc., temporarily disable their noise suppression / echo cancellation and re-test.
-
-### Fix 3 — Use a different input device
-If your current input is a **Bluetooth headset mic** or a **webcam mic**, try switching to a wired microphone or the built-in “Microphone Array”. Then select the same device in:
-- **Windows Sound input device**, and
-- the browser’s **site microphone** selection
-
-### Tip — Confirm the mic is actually receiving audio
-In **Settings → System → Sound → Input**, speak or play a CW tone near the mic and confirm the **input level meter moves**. If it moves in Windows but the decoder shows nothing, it is almost always audio processing suppressing the tone.
-
-## ⚠️ Important: Facebook / Instagram In-App Browser
-
-If you open this page from **Facebook or Instagram**, it may open inside their built-in browser.
-
-⚠️ **The CW Decoder will NOT work there.**
-
-Reason:
-- Facebook’s in-app browser does **not fully support microphone access**
-- Web Audio + getUserMedia() is blocked or unreliable
-
-### ✅ Solution
-Open the page in a real browser:
-- Tap the **⋮ menu** (or “Open in browser”)
-- Choose **Chrome**, **Firefox**, or **Safari**
-
-Once opened in a normal browser, the **Decode (microphone)** function works normally.
+If you have decoder or audio setup trouble, review this file’s tips.
