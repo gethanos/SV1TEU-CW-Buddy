@@ -13,7 +13,7 @@ Designed for:
 Brand-new CW decoder with multi-speed decoding (5–33 WPM), auto-locking best speed, live frequency tracking, smarter scoring, cleaner UI, and major stability improvements.
 
 ## 🚀 Live Demo
-https://vle.cited.gr/apps/cw
+https://vle.cited.gr/apps/cw/
 
 ## ✨ Features
 - Generate realistic CW QSO text
