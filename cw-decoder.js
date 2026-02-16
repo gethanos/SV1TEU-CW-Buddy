@@ -541,7 +541,7 @@ See the LICENSE file in the repository root for full license text.
           this.fullOutput += char;
           this.currentTransmission += char;
           
-          // FIX: Trim fullOutput to prevent memory growth
+          // Trim fullOutput to prevent memory growth
           if (this.fullOutput.length > 500) {
             this.fullOutput = this.fullOutput.slice(-500);
           }
@@ -550,7 +550,7 @@ See the LICENSE file in the repository root for full license text.
           this.fullOutput += "?";
           this.currentTransmission += "?";
           
-          // FIX: Trim fullOutput to prevent memory growth
+          // Trim fullOutput to prevent memory growth
           if (this.fullOutput.length > 500) {
             this.fullOutput = this.fullOutput.slice(-500);
           }
@@ -573,10 +573,20 @@ See the LICENSE file in the repository root for full license text.
           wordScore += 40;
         }
         
-        // Callsign pattern (critical for pileups)
+        // Penalize repeated characters like "TTT", "TTTT", "MMM", etc.
+        if (/([A-Z])\1{2,}/.test(word)) {
+          wordScore -= 100;
+        }
+        
+        // Penalize isolated 'T's specifically
+        if (word === 'T') {
+          wordScore -= 30;
+        }
+        
+        // Callsign pattern
         if (questionMarks === 0 && /[A-Z]/.test(word) && /[0-9]/.test(word) && 
             word.length >= 3 && word.length <= 10) {
-          wordScore += 80; // Very high weight
+          wordScore += 80;
         }
         
         // Q-codes
@@ -603,12 +613,12 @@ See the LICENSE file in the repository root for full license text.
         if (word.length >= 4 && /[A-Z]{2}\/[A-Z]{2}-[0-9]{3}/.test(word)) wordScore += 70;
         if (word.length >= 4 && word.slice(-3) === 'OTA' && /[A-Z]/.test(word[0])) wordScore += 60;
         
-        // Numbers and signal reports
+        // Numbers
         if (/^[0-9]{3}$/.test(word)) wordScore += 25;
         if (word === '73') wordScore += 35;
         if (word === '88') wordScore += 35;
         
-        return Math.max(-100, wordScore); // Allow negative scores
+        return wordScore;
       }
 
       completeWord() {
@@ -619,7 +629,7 @@ See the LICENSE file in the repository root for full license text.
         this.fullOutput += " ";
         this.currentTransmission += " ";
         
-        // FIX: Trim fullOutput after adding space
+        // Trim fullOutput after adding space
         if (this.fullOutput.length > 500) {
           this.fullOutput = this.fullOutput.slice(-500);
         }
@@ -627,6 +637,13 @@ See the LICENSE file in the repository root for full license text.
         // Add to transmission score
         const wordScore = this.scoreWord(word);
         this.transmissionScore += wordScore;
+        
+        // CAP THE TRANSMISSION SCORE BETWEEN -200 AND 200
+        if (this.transmissionScore > 200) {
+          this.transmissionScore = 200;
+        } else if (this.transmissionScore < -200) {
+          this.transmissionScore = -200;
+        }
         
         if (this.onWord) {
           this.onWord(word, wordScore);
@@ -699,6 +716,29 @@ See the LICENSE file in the repository root for full license text.
         this.wordsFromSticky = 0;         // Count words from sticky decoder
         this.minStickyWords = 5;          // Must have 5 good words to become sticky
         
+        // Pause detection - independent timer
+        this.lastSignalTime = Date.now();
+        this.pauseThreshold = 3000; // 3 seconds of silence = pause
+        
+        // Start silence check interval
+        this.silenceCheckInterval = setInterval(() => {
+          const now = Date.now();
+          if (now - this.lastSignalTime > this.pauseThreshold) {
+            // Silence detected - reset scores
+            for (let d of this.decoders) {
+              d.decoder.transmissionScore = 0;
+              d.decoder.currentTransmission = "";
+            }
+            for (let d of this.decoders) {
+              this.lastScores[d.wpm] = 0;
+            }
+            this.bestDecoderIndex = 3;
+            this.stickyDecoderIndex = null;
+            this.wordsFromSticky = 0;
+            this.lastSignalTime = now; // Reset timer
+          }
+        }, 1000); // Check every second
+        
         // Initialize scores
         for (let d of this.decoders) {
           this.lastScores[d.wpm] = 0;
@@ -737,7 +777,7 @@ See the LICENSE file in the repository root for full license text.
           }
           // Otherwise stay with sticky decoder even if scores are equal or slightly worse
         } else {
-          // Normal switching logic - FIXED: changed from percentage to absolute +30
+          // Normal switching logic - changed from percentage to absolute +30
           if (currentBestScore > this.scoreThreshold && currentBestScore > myCurrentScore + 30) {
             // New decoder is 30 points better and above threshold
             this.bestDecoderIndex = currentBestIndex;
@@ -775,6 +815,13 @@ See the LICENSE file in the repository root for full license text.
       }
 
       addTiming(duration, isSignal) {
+        const now = Date.now();
+        
+        // If it's a signal, update last signal time
+        if (isSignal) {
+          this.lastSignalTime = now;
+        }
+        
         for (let d of this.decoders) {
           d.decoder.addTiming(duration, isSignal);
         }
@@ -949,7 +996,13 @@ See the LICENSE file in the repository root for full license text.
         }
       } else {
         detector.stop();
-        if (multiDecoder) multiDecoder.forceComplete();
+        if (multiDecoder) {
+          // Clear the silence check interval
+          if (multiDecoder.silenceCheckInterval) {
+            clearInterval(multiDecoder.silenceCheckInterval);
+          }
+          multiDecoder.forceComplete();
+        }
         if (displayInterval) clearInterval(displayInterval);
 
         running = false;
