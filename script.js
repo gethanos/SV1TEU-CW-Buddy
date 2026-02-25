@@ -28,26 +28,29 @@ const prosignMap = {
     '<AR>': '.-.-.',    // End of message / over (A+R fused)
     '<AS>': '.-...',    // Wait / stand by   (A+S fused)
     '<BT>': '-...-',    // Break / separator  (B+T fused) — same as =
-    '<KA>': '-.-.-',    // Starting signal    (K+A fused) — common in EU formal CW
+    '<KA>': '-.-.-',    // Starting signal    (K+A fused) — common in formal CW
     '<KN>': '-.--.',    // Go ahead, specific station only (K+N fused)
     '<SK>': '...-.-',   // End of contact     (S+K fused) — alias of <VA>
     '<VA>': '...-.-',   // End of contact     (V+A fused) — correct ITU prosign
-    '<VE>': '...-.',    // Understood         (V+E fused)
-};
-
-// Human-readable labels for the toolkit panel
-const prosignLabels = {
-    '<KA>': { label: 'KA',  title: 'Starting signal — begin transmission (EU formal)' },
-    '<AR>': { label: 'AR',  title: 'End of message / passing over' },
-    '<KN>': { label: 'KN',  title: 'Go ahead — specific station only' },
-    '<BT>': { label: 'BT',  title: 'Break / separator between sections (= sign)' },
-    '<AS>': { label: 'AS',  title: 'Wait / stand by' },
-    '<VA>': { label: 'VA',  title: 'End of QSO / sign off (correct ITU prosign for SK)' },
-    '<SK>': { label: 'SK',  title: 'End of QSO — common abbreviation alias for VA' },
-    '<VE>': { label: 'VE',  title: 'Understood' },
+    '<VE>': '...-.',    // Obsolete / rarely used
+    '<R>':  '.-.'       // Understood / acknowledged (ITU formal)
 };
 
 // ---------------------------------------------------------------------------
+// Human-readable labels for the toolkit panel
+// ---------------------------------------------------------------------------
+const prosignLabels = {
+    '<KA>': { label: 'KA',  title: 'Starting signal — attention / beginning of transmission (formal procedure)', type: 'ITU formal', usage: 'rare, formal traffic, training' },
+    '<AR>': { label: 'AR',  title: 'End of message (no invitation to reply)', type: 'ITU formal', usage: 'standard end of message in CW' },
+    '<KN>': { label: 'KN',  title: 'Go ahead — specific station only (operational, non-ITU)', type: 'operational', usage: 'common in amateur directed QSOs' },
+    '<BT>': { label: 'BT',  title: 'Separator / break between sections', type: 'ITU formal', usage: 'message structuring' },
+    '<AS>': { label: 'AS',  title: 'Wait / stand by', type: 'ITU formal', usage: 'pause or pending message' },
+    '<VA>': { label: 'VA',  title: 'End of transmission — no reply expected (formal ITU signal)', type: 'ITU formal', usage: 'bulletins, announcements, final transmission; formal QSO closure' },
+    '<SK>': { label: 'SK',  title: 'End of contact (common amateur prosign; same signal as VA)', type: 'amateur operational', usage: 'common QSO closing in amateur CW; identical Morse to VA' },
+    '<VE>': { label: 'VE',  title: 'Obsolete / rarely used procedural signal — not used in modern CW', type: 'obsolete', usage: 'historical reference only' },
+    '<R>':  { label: 'R',   title: 'Understood / acknowledged (ITU formal)', type: 'ITU formal', usage: 'acknowledgment of message' }
+};
+
 // NATO phonetic alphabet — used only for callsign expansion in TTS mode
 // ---------------------------------------------------------------------------
 const phoneticAlphabet = {
@@ -180,8 +183,8 @@ function loadProfile() {
 // or a plain string (word or character sequence).
 // ---------------------------------------------------------------------------
 function tokenizeLine(line) {
-    // Match prosign tokens like <AR>, <KA> etc., or regular words
-    const prosignPattern = /(<(?:AR|AS|BT|KA|KN|SK|VA|VE)>)/gi;
+    // Match prosign tokens like <AR>, <KA>, <R> etc., or regular words
+    const prosignPattern = /(<(?:AR|AS|BT|KA|KN|SK|VA|VE|R)>)/gi;
     const parts = line.split(prosignPattern);
     const tokens = [];
     for (const part of parts) {
@@ -304,7 +307,7 @@ function updateOutput() {
     const displayLines = lines.map(line => {
         // First highlight prosigns
         let display = line.replace(
-            /(<(?:AR|AS|BT|KA|KN|SK|VA|VE)>)/gi,
+            /(<(?:AR|AS|BT|KA|KN|SK|VA|VE|R)>)/gi,
             (m) => `<span class="prosign">\u27E8${m.slice(1,-1).toUpperCase()}\u27E9</span>`
         );
         // Then highlight callsigns
@@ -412,7 +415,7 @@ function callsignToPhonetic(callsign) {
 // Everything else (CQ, DE, RST, names, etc.) is left for TTS to read naturally.
 function expandCallsignsToPhonetic(text, callsigns) {
     // Strip prosign tokens — they are not spoken
-    let result = text.replace(/<(?:AR|AS|BT|KA|KN|SK|VA|VE)>/gi, '');
+    let result = text.replace(/<(?:AR|AS|BT|KA|KN|SK|VA|VE|R)>/gi, '');
 
     for (const cs of callsigns) {
         if (!cs) continue;
@@ -434,7 +437,7 @@ function playText() {
     const plainText = stripHtml(raw);
     const spokenText = (textPlayback.type === 'phonetic')
         ? expandCallsignsToPhonetic(plainText, window.callsignsForPhonetic || [])
-        : plainText.replace(/<(?:AR|AS|BT|KA|KN|SK|VA|VE)>/gi, '');
+        : plainText.replace(/<(?:AR|AS|BT|KA|KN|SK|VA|VE|R)>/gi, '');
 
     const utterance = new SpeechSynthesisUtterance(spokenText);
     utterance.rate = textPlayback.speed;
