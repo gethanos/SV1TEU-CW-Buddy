@@ -5,51 +5,98 @@ This software is released under the MIT License.
 See the LICENSE file in the repository root for full license text.
 */
 
-// Morse code mapping
+// ---------------------------------------------------------------------------
+// Morse code mapping (standard characters)
+// ---------------------------------------------------------------------------
 const morseMap = {
-    'A':'.-', 'B':'-...', 'C':'-.-.', 'D':'-..', 'E':'.', 'F':'..-.', 'G':'--.',
-    'H':'....', 'I':'..', 'J':'.---', 'K':'-.-', 'L':'.-..', 'M':'--',
-    'N':'-.', 'O':'---', 'P':'.--.', 'Q':'--.-', 'R':'.-.', 'S':'...', 'T':'-',
-    'U':'..-', 'V':'...-', 'W':'.--', 'X':'-..-', 'Y':'-.--', 'Z':'--..',
+    'A':'.-',    'B':'-...',  'C':'-.-.',  'D':'-..',   'E':'.',
+    'F':'..-.',  'G':'--.',   'H':'....',  'I':'..',    'J':'.---',
+    'K':'-.-',   'L':'.-..',  'M':'--',    'N':'-.',    'O':'---',
+    'P':'.--.',  'Q':'--.-',  'R':'.-.',   'S':'...',   'T':'-',
+    'U':'..-',   'V':'...-',  'W':'.--',   'X':'-..-',  'Y':'-.--',
+    'Z':'--..',
     '0':'-----', '1':'.----', '2':'..---', '3':'...--', '4':'....-',
     '5':'.....', '6':'-....', '7':'--...', '8':'---..', '9':'----.',
-    '/':'-..-.', '?':'..--..', '=':'-...-', '.':'.-.-.-', ',':'--..--'
+    '/':'-..-.',  '?':'..--..',  '=':'-...-',  '.':'.-.-.-',  ',':'--..--'
 };
 
+// ---------------------------------------------------------------------------
+// Prosign map — sequences sent WITHOUT intra-character gaps (fused)
+// The token format used in templates is <XX>
+// ---------------------------------------------------------------------------
+const prosignMap = {
+    '<AR>': '.-.-.',    // End of message / over (A+R fused)
+    '<AS>': '.-...',    // Wait / stand by   (A+S fused)
+    '<BT>': '-...-',    // Break / separator  (B+T fused) — same as =
+    '<KA>': '-.-.-',    // Starting signal    (K+A fused) — common in EU formal CW
+    '<KN>': '-.--.',    // Go ahead, specific station only (K+N fused)
+    '<SK>': '...-.-',   // End of contact     (S+K fused) — alias of <VA>
+    '<VA>': '...-.-',   // End of contact     (V+A fused) — correct ITU prosign
+    '<VE>': '...-.',    // Understood         (V+E fused)
+};
+
+// Human-readable labels for the toolkit panel
+const prosignLabels = {
+    '<KA>': { label: 'KA',  title: 'Starting signal — begin transmission (EU formal)' },
+    '<AR>': { label: 'AR',  title: 'End of message / passing over' },
+    '<KN>': { label: 'KN',  title: 'Go ahead — specific station only' },
+    '<BT>': { label: 'BT',  title: 'Break / separator between sections (= sign)' },
+    '<AS>': { label: 'AS',  title: 'Wait / stand by' },
+    '<VA>': { label: 'VA',  title: 'End of QSO / sign off (correct ITU prosign for SK)' },
+    '<SK>': { label: 'SK',  title: 'End of QSO — common abbreviation alias for VA' },
+    '<VE>': { label: 'VE',  title: 'Understood' },
+};
+
+// ---------------------------------------------------------------------------
+// NATO phonetic alphabet — used only for callsign expansion in TTS mode
+// ---------------------------------------------------------------------------
+const phoneticAlphabet = {
+    'A': 'Alpha',    'B': 'Bravo',    'C': 'Charlie', 'D': 'Delta',
+    'E': 'Echo',     'F': 'Foxtrot',  'G': 'Golf',    'H': 'Hotel',
+    'I': 'India',    'J': 'Juliet',   'K': 'Kilo',    'L': 'Lima',
+    'M': 'Mike',     'N': 'November', 'O': 'Oscar',   'P': 'Papa',
+    'Q': 'Quebec',   'R': 'Romeo',    'S': 'Sierra',  'T': 'Tango',
+    'U': 'Uniform',  'V': 'Victor',   'W': 'Whiskey', 'X': 'X-ray',
+    'Y': 'Yankee',   'Z': 'Zulu',
+    '0': 'Zero',     '1': 'One',      '2': 'Two',     '3': 'Three',
+    '4': 'Four',     '5': 'Five',     '6': 'Six',     '7': 'Seven',
+    '8': 'Eight',    '9': 'Niner'
+};
+
+// ---------------------------------------------------------------------------
 // Templates
+// ---------------------------------------------------------------------------
 const templates = {
-  // Mid‑QSO “next overs” (no CQ, no SK — meant for the middle of a contact)
-  short: [
-    "{DX} DE {MY} KN",
-    "{DX} DE {MY} UR RST {RST} {RST} KN",
-    "TNX FER CALL {DX} DE {MY} KN"
-  ],
+    // Mid-QSO "next overs" — plain abbreviations are fine here
+    short: [
+        "{DX} DE {MY} KN",
+        "{DX} DE {MY} UR RST {RST} {RST} KN",
+        "TNX FER CALL {DX} DE {MY} KN"
+    ],
 
-  // Full QSO / friendly ragchew (includes close)
-  relaxed: [
-    "CQ CQ CQ DE {MY} {MY} K",
-    "{DX} DE {MY} KN",
-    "{DX} DE {MY} UR RST {RST} {RST} KN",
-    "{NAME_LINE}",
-    "{QTH_LINE}",
-    "{RIG_LINE}",
-    "{INFO_END_RELAXED}",
-    "TNX FER QSO 73 DE {MY} SK"
-  ],
+    // Full QSO / friendly ragchew — plain abbreviations
+    relaxed: [
+        "CQ CQ CQ DE {MY} {MY} K",
+        "{DX} DE {MY} KN",
+        "{DX} DE {MY} UR RST {RST} {RST} KN",
+        "NAME {NAME} {NAME}",
+        "QTH {QTH} {QTH}",
+        "RIG {RIG}",
+        "TNX FER QSO 73 DE {MY} SK"
+    ],
 
-  // Formal / common CW etiquette (structured, explicit ending)
-  formal: [
-    "CQ CQ CQ DE {MY} {MY} K",
-    "{DX} DE {MY} KN",
-    "{DX} DE {MY} UR RST {RST} {RST} KN",
-    "{NAME_LINE}",
-    "{QTH_LINE}",
-    "{RIG_LINE}",
-    "{INFO_END_FORMAL}",
-    "TNX FER QSO {DX} DE {MY} 73 SK"
-  ]
+    // Formal / correct ITU procedure — full prosign usage
+    formal: [
+        "<KA> CQ CQ CQ DE {MY} {MY} {MY} <AR> K",
+        "<KA> {DX} DE {MY} <KN>",
+        "<KA> {DX} DE {MY} <BT> UR RST {RST} {RST}{INFO} <BT> HW CPY {DX} DE {MY} <KN>",
+        "<KA> TNX FER QSO {DX} 73 DE {MY} <VA>"
+    ]
 };
-// State
+
+// ---------------------------------------------------------------------------
+// Playback state
+// ---------------------------------------------------------------------------
 let textPlayback = {
     isPlaying: false,
     type: 'phonetic',
@@ -62,79 +109,121 @@ let cwPlayback = {
     type: 'cw',
     wpm: 15,
     frequency: 700,
-    audioContext: null
+    audioContext: null,
+    scheduledTimeouts: []   // all pending setTimeout IDs so Stop can cancel them
 };
 
-// Initialize
+// ---------------------------------------------------------------------------
+// Init
+// ---------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
     setupControls();
     loadProfile();
     updateOutput();
-    
-    // Add real-time listeners
+    buildProsignToolkit();
+
     const inputs = ['myCall', 'dxCall', 'myRST', 'myName', 'myQTH', 'myRIG', 'profile', 'hwcpy', 'qsoText'];
     inputs.forEach(id => {
-        const element = document.getElementById(id);
-        if (element) {
-            element.addEventListener('input', updateOutput);
-            element.addEventListener('change', updateOutput);
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('input', updateOutput);
+            el.addEventListener('change', updateOutput);
         }
     });
 });
 
 function setupControls() {
-    // Text speed
     const textSpeed = document.getElementById('text-speed');
     const textSpeedValue = document.getElementById('text-speed-value');
-    textSpeed.addEventListener('input', (e) => {
+    textSpeed.addEventListener('input', e => {
         const speed = parseFloat(e.target.value);
         textSpeedValue.textContent = `${speed.toFixed(1)}x`;
         textPlayback.speed = speed;
     });
-    
-    // CW speed
+
     const cwSpeed = document.getElementById('cw-speed');
     const cwSpeedValue = document.getElementById('cw-speed-value');
-    cwSpeed.addEventListener('input', (e) => {
+    cwSpeed.addEventListener('input', e => {
         const wpm = parseInt(e.target.value);
         cwSpeedValue.textContent = `${wpm} WPM`;
         cwPlayback.wpm = wpm;
     });
-    
-    // CW frequency
+
     const cwFrequency = document.getElementById('cw-frequency');
     const cwFrequencyValue = document.getElementById('cw-frequency-value');
-    cwFrequency.addEventListener('input', (e) => {
+    cwFrequency.addEventListener('input', e => {
         const freq = parseInt(e.target.value);
         cwFrequencyValue.textContent = `${freq} Hz`;
         cwPlayback.frequency = freq;
     });
-    
-    // Profile change
+
     document.getElementById('profile').addEventListener('change', loadProfile);
 }
 
 function loadProfile() {
     const profile = document.getElementById('profile').value;
     const qsoTextArea = document.getElementById('qsoText');
-    
+
     if (profile === 'custom') {
+        qsoTextArea.value = '';
         qsoTextArea.placeholder = 'Write your custom QSO template here...';
+        updateOutput();
     } else {
         qsoTextArea.value = templates[profile].join('\n');
         updateOutput();
     }
 }
 
+// ---------------------------------------------------------------------------
+// Tokenizer — splits a line into an array of tokens.
+// Each token is either a prosign object { prosign: '<XX>', morse: '...' }
+// or a plain string (word or character sequence).
+// ---------------------------------------------------------------------------
+function tokenizeLine(line) {
+    // Match prosign tokens like <AR>, <KA> etc., or regular words
+    const prosignPattern = /(<(?:AR|AS|BT|KA|KN|SK|VA|VE)>)/gi;
+    const parts = line.split(prosignPattern);
+    const tokens = [];
+    for (const part of parts) {
+        const upper = part.toUpperCase();
+        if (prosignMap[upper] !== undefined) {
+            tokens.push({ type: 'prosign', token: upper, morse: prosignMap[upper] });
+        } else if (part.trim() !== '') {
+            // Split into words, each word becomes a token
+            const words = part.trim().split(/\s+/);
+            for (const word of words) {
+                if (word) tokens.push({ type: 'word', token: word });
+            }
+        }
+    }
+    return tokens;
+}
+
+// ---------------------------------------------------------------------------
+// Generate Morse for a single word (character by character, with intra gaps)
+// Returns array of symbol strings e.g. ['.-', '-...']
+// ---------------------------------------------------------------------------
+function wordToMorseSymbols(word) {
+    const symbols = [];
+    for (const ch of word.toUpperCase()) {
+        const m = morseMap[ch];
+        if (m) symbols.push(m);
+    }
+    return symbols;
+}
+
+// ---------------------------------------------------------------------------
+// updateOutput
+// ---------------------------------------------------------------------------
 function updateOutput() {
     const myRST = document.getElementById('myRST').value.trim().toUpperCase();
     const data = {
-        MY: document.getElementById('myCall').value.toUpperCase().trim(),
-        DX: document.getElementById('dxCall').value.toUpperCase().trim(),
-        RST: myRST || '5NN',
+        MY:   document.getElementById('myCall').value.toUpperCase().trim(),
+        DX:   document.getElementById('dxCall').value.toUpperCase().trim(),
+        RST:  myRST || '5NN',
         NAME: document.getElementById('myName').value.toUpperCase().trim(),
-        QTH: document.getElementById('myQTH').value.toUpperCase().trim(),
-        RIG: document.getElementById('myRIG').value.toUpperCase().trim()
+        QTH:  document.getElementById('myQTH').value.toUpperCase().trim(),
+        RIG:  document.getElementById('myRIG').value.toUpperCase().trim()
     };
 
     if (!data.MY || !data.DX) {
@@ -143,153 +232,232 @@ function updateOutput() {
         return;
     }
 
-    // Create the special lines only if data exists
-    data.NAME_LINE = data.NAME ? `NAME ${data.NAME} ${data.NAME}` : '';
-    data.QTH_LINE = data.QTH ? `QTH ${data.QTH} ${data.QTH}` : '';
-    data.RIG_LINE = data.RIG ? `RIG ${data.RIG}` : '';
-   // Add a handover marker only if at least one info line exists
-   const hasInfo = Boolean(data.NAME_LINE || data.QTH_LINE || data.RIG_LINE);
-   data.INFO_END_RELAXED = hasInfo ? 'BK' : '';
-   data.INFO_END_FORMAL  = hasInfo ? 'KN' : '';
+    // Build {INFO} — formal template uses this to inject only filled fields with <BT> separators
+    let infoBlock = '';
+    if (data.NAME) infoBlock += ` <BT> NAME ${data.NAME} ${data.NAME}`;
+    if (data.QTH)  infoBlock += ` <BT> QTH ${data.QTH} ${data.QTH}`;
+    if (data.RIG)  infoBlock += ` <BT> RIG ${data.RIG}`;
+    data.INFO = infoBlock;
 
-    // Get template
+    const profile = document.getElementById('profile').value;
+    const isFormal = profile === 'formal';
+
     const templateText = document.getElementById('qsoText').value;
-    let lines = templateText.split('\n').filter(line => line.trim());
-    
-    if (lines.length === 0) {
-        document.getElementById('expandedText').innerHTML = 'Generated text will appear here...';
-        document.getElementById('morseOutput').textContent = 'Generated Morse code will appear here...';
-        return;
-    }
+    let lines = templateText.split('\n').filter(l => l.trim());
 
-    // Process lines and filter out empty ones after substitution
-    lines = lines
-        .map(line => {
-            for (const key in data) {
-                if (data[key]) {
-                    line = line.replaceAll(`{${key}}`, data[key]);
+    // Substitute all {PLACEHOLDER} tokens
+    lines = lines.map(line => {
+        for (const key in data) {
+            if (data[key] !== undefined) {
+                line = line.replaceAll(`{${key}}`, data[key]);
+            }
+        }
+        return line.trim();
+    });
+
+    // Drop lines with unfilled placeholders (field was empty) or bare label lines
+    lines = lines.filter(line => {
+        if (!line) return false;
+        if (line.includes('{') && line.includes('}')) return false;
+        if (/^(NAME|QTH|RIG)\s*$/i.test(line)) return false;
+        return true;
+    });
+
+    // For relaxed/short: fold NAME/QTH/RIG into the RST line, then remove standalone info lines
+    if (!isFormal) {
+        const hasName = Boolean(data.NAME);
+        const hasQTH  = Boolean(data.QTH);
+        const hasRIG  = Boolean(data.RIG);
+        if (hasName || hasQTH || hasRIG) {
+            let patched = false;
+            lines = lines.map(line => {
+                if (!patched && /UR RST/i.test(line) && /\bKN\b/i.test(line)) {
+                    let infoStr = '';
+                    if (hasName) infoStr += ` NAME ${data.NAME} ${data.NAME}`;
+                    if (hasQTH)  infoStr += ` QTH ${data.QTH} ${data.QTH}`;
+                    if (hasRIG)  infoStr += ` RIG ${data.RIG}`;
+                    patched = true;
+                    return line.replace(/\bKN\b/i, '').trim() + infoStr + ' BK';
                 }
-            }
-            return line.trim();
-        })
-        .filter(line => {
-            // Filter out lines that are just empty placeholders
-            // This removes lines like "NAME  " or "QTH  " when data is empty
-            if (line === '' || line === 'NAME' || line === 'QTH' || line === 'RIG') {
-                return false;
-            }
-            // Filter out lines that only contain template variables that weren't replaced
-            if (line.includes('{') && line.includes('}')) {
-                return false;
-            }
-            return true;
-        });
-
-    // Add HW CPY line if checked (place it BEFORE the first TNX line)
-    if (document.getElementById('hwcpy').checked) {
-        const hwLine = `HW CPY? ${data.DX} DE ${data.MY} KN`;
-
-        const tnxIndex = lines.findIndex(l => l.trim().toUpperCase().startsWith('TNX'));
-        if (tnxIndex >= 0) {
-            lines.splice(tnxIndex, 0, hwLine);
-        } else {
-            lines.push(hwLine);
+                return line;
+            });
+            lines = lines.filter(line =>
+                !(hasName && /^NAME\s+\S/i.test(line)) &&
+                !(hasQTH  && /^QTH\s+\S/i.test(line))  &&
+                !(hasRIG  && /^RIG\s+\S/i.test(line))
+            );
         }
     }
 
-    // Final filter to remove any empty lines
+    // HW CPY for non-formal (formal template already includes it inline)
+    if (!isFormal && document.getElementById('hwcpy').checked) {
+        const hwLine = `HW CPY? ${data.DX} DE ${data.MY} KN`;
+        const tnxIndex = lines.findIndex(l => l.trim().toUpperCase().startsWith('TNX'));
+        if (tnxIndex >= 0) lines.splice(tnxIndex, 0, hwLine);
+        else lines.push(hwLine);
+    }
+
     lines = lines.filter(l => l.trim() !== '');
 
-    // Format expanded text
+    // ---- Build expanded text display ----
+    // Prosigns rendered with special styling <span class="prosign">⟨AR⟩</span>
+    const displayLines = lines.map(line => {
+        // First highlight prosigns
+        let display = line.replace(
+            /(<(?:AR|AS|BT|KA|KN|SK|VA|VE)>)/gi,
+            (m) => `<span class="prosign">\u27E8${m.slice(1,-1).toUpperCase()}\u27E9</span>`
+        );
+        // Then highlight callsigns
+        display = display.replace(
+            new RegExp(`\\b(${data.MY}|${data.DX}|CQ)\\b`, 'gi'),
+            '<span class="callsign">$1</span>'
+        );
+        return display;
+    });
+
     const expanded = lines.join('\n');
-    const highlightedText = expanded.replace(
-        new RegExp(`\\b(${data.MY}|${data.DX}|CQ)\\b`, 'gi'),
-        '<span class="callsign">$1</span>'
-    );
-    document.getElementById('expandedText').innerHTML = highlightedText || 'No content generated';
-    
-    // Store for playback
+    document.getElementById('expandedText').innerHTML = displayLines.join('\n') || 'No content generated';
     window.expandedTextForPlayback = expanded;
-    
-    // Generate Morse code
-    const morseLines = [];
-    const rawMorseSequences = [];
-    
+
+    // Store the callsigns so playText() knows which tokens to spell out
+    window.callsignsForPhonetic = [data.MY, data.DX];
+
+    // ---- Build Morse code display + playback sequence ----
+    // playback sequence: array of { symbols: string[], prosign: bool }
+    const morseDisplayLines = [];
+    const playbackSequence = [];  // [{symbols: [...], isProsign: bool}, ...]
+
     for (const line of lines) {
-        const morseWords = [];
-        const words = line.split(' ');
-        
-        for (const word of words) {
-            const morseChars = [];
-            for (const char of word.toUpperCase()) {
-                const morse = morseMap[char] || '';
-                morseChars.push(morse);
-                rawMorseSequences.push(morse);
+        const tokens = tokenizeLine(line);
+        const morseParts = [];
+
+        for (let t = 0; t < tokens.length; t++) {
+            const tok = tokens[t];
+            if (tok.type === 'prosign') {
+                // Display prosign morse as plain dots/dashes — no brackets
+                morseParts.push(tok.morse);
+                playbackSequence.push({ symbols: [tok.morse], isProsign: true });
+            } else {
+                const syms = wordToMorseSymbols(tok.token);
+                if (syms.length) {
+                    morseParts.push(syms.join(' '));
+                    // Each symbol in a word gets its own entry with inter-symbol gap
+                    playbackSequence.push({ symbols: syms, isProsign: false });
+                }
             }
-            morseWords.push(morseChars.join(' '));
         }
-        morseLines.push(morseWords.join(' / '));
+        morseDisplayLines.push(morseParts.join(' / '));
     }
-    
-    // Store for playback
-    window.rawMorseForPlayback = rawMorseSequences;
-    
-    document.getElementById('morseOutput').textContent = morseLines.join('\n') || 'No Morse code generated';
+
+    window.playbackSequenceForCW = playbackSequence;
+    document.getElementById('morseOutput').textContent =
+        morseDisplayLines.join('\n') || 'No Morse code generated';
 }
 
-// Text Playback - Simplified (phonetic disabled for Firefox)
+// ---------------------------------------------------------------------------
+// Prosign bar — compact chips below the textarea, click to insert at cursor
+// ---------------------------------------------------------------------------
+function buildProsignToolkit() {
+    const container = document.getElementById('prosign-toolkit-buttons');
+    if (!container) return;
+
+    Object.entries(prosignLabels).forEach(([token, info]) => {
+        const btn = document.createElement('button');
+        btn.className = 'prosign-btn';
+        btn.textContent = `⟨${info.label}⟩`;
+        btn.addEventListener('click', () => insertProsign(token));
+        btn.addEventListener('mouseenter', () => {
+            const tip = document.getElementById('prosign-tooltip');
+            if (tip) tip.textContent = info.title;
+        });
+        btn.addEventListener('mouseleave', () => {
+            const tip = document.getElementById('prosign-tooltip');
+            if (tip) tip.textContent = '';
+        });
+        container.appendChild(btn);
+    });
+}
+
+function insertProsign(token) {
+    const ta = document.getElementById('qsoText');
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end   = ta.selectionEnd;
+    const val   = ta.value;
+    const before = (start > 0 && val[start - 1] !== ' ') ? ' ' : '';
+    const after  = (end < val.length && val[end] !== ' ') ? ' ' : '';
+    ta.value = val.slice(0, start) + before + token + after + val.slice(end);
+    const newPos = start + before.length + token.length + after.length;
+    ta.setSelectionRange(newPos, newPos);
+    ta.focus();
+    updateOutput();
+}
+
+// ---------------------------------------------------------------------------
+// CW Playback engine
+// ---------------------------------------------------------------------------
 function setTextPlaybackType(type) {
     textPlayback.type = type;
     document.getElementById('text-phonetic-btn').classList.toggle('active', type === 'phonetic');
     document.getElementById('text-normal-btn').classList.toggle('active', type === 'normal');
 }
 
-function playText() {
-    if (textPlayback.isPlaying) {
-        stopTextPlayback();
-        return;
+// Spell out a callsign character by character using NATO phonetic alphabet.
+// e.g. "SV1TEU" → "Sierra Victor One Tango Echo Uniform"
+function callsignToPhonetic(callsign) {
+    return callsign.toUpperCase().split('').map(ch => phoneticAlphabet[ch] || ch).join(' ');
+}
+
+// Replace only the MY and DX callsigns in the text with their phonetic form.
+// Everything else (CQ, DE, RST, names, etc.) is left for TTS to read naturally.
+function expandCallsignsToPhonetic(text, callsigns) {
+    // Strip prosign tokens — they are not spoken
+    let result = text.replace(/<(?:AR|AS|BT|KA|KN|SK|VA|VE)>/gi, '');
+
+    for (const cs of callsigns) {
+        if (!cs) continue;
+        const phonetic = callsignToPhonetic(cs);
+        // Replace whole-word occurrences only
+        result = result.replace(new RegExp(`\\b${cs}\\b`, 'gi'), phonetic);
     }
-    
-    const text = window.expandedTextForPlayback;
-    if (!text) return;
-    
+    return result;
+}
+
+function playText() {
+    if (textPlayback.isPlaying) { stopTextPlayback(); return; }
+    const raw = window.expandedTextForPlayback;
+    if (!raw) return;
+
     textPlayback.isPlaying = true;
     updatePlaybackUI('text', true);
-    
-    // Always use normal playback for now (phonetic disabled for Firefox)
-    const cleanText = stripHtml(text);
-    const utterance = new SpeechSynthesisUtterance(cleanText);
+
+    const plainText = stripHtml(raw);
+    const spokenText = (textPlayback.type === 'phonetic')
+        ? expandCallsignsToPhonetic(plainText, window.callsignsForPhonetic || [])
+        : plainText.replace(/<(?:AR|AS|BT|KA|KN|SK|VA|VE)>/gi, '');
+
+    const utterance = new SpeechSynthesisUtterance(spokenText);
     utterance.rate = textPlayback.speed;
-    utterance.onend = () => {
-        textPlayback.currentUtterance = null;
-        stopTextPlayback();
-    };
-    utterance.onerror = () => {
-        textPlayback.currentUtterance = null;
-        stopTextPlayback();
-    };
+    utterance.onend  = () => { textPlayback.currentUtterance = null; stopTextPlayback(); };
+    utterance.onerror = () => { textPlayback.currentUtterance = null; stopTextPlayback(); };
     textPlayback.currentUtterance = utterance;
     speechSynthesis.speak(utterance);
 }
 
 function stripHtml(html) {
-    const temp = document.createElement('div');
-    temp.innerHTML = html;
-    return temp.textContent || temp.innerText || '';
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || '';
 }
 
 function stopTextPlayback() {
     if (textPlayback.isPlaying) {
         textPlayback.isPlaying = false;
-        if (textPlayback.currentUtterance) {
-            speechSynthesis.cancel();
-            textPlayback.currentUtterance = null;
-        }
+        if (textPlayback.currentUtterance) { speechSynthesis.cancel(); textPlayback.currentUtterance = null; }
         updatePlaybackUI('text', false);
     }
 }
 
-// CW Playback
 function setMorsePlaybackType(type) {
     cwPlayback.type = type;
     document.getElementById('morse-cw-btn').classList.toggle('active', type === 'cw');
@@ -297,57 +465,81 @@ function setMorsePlaybackType(type) {
 }
 
 function playCW() {
-    if (cwPlayback.type === 'phonetic') {
-        playText();
-        return;
-    }
-    
-    if (cwPlayback.isPlaying) {
-        stopCWPlayback();
-        return;
-    }
-    
-    const rawMorseSequences = window.rawMorseForPlayback;
-    if (!rawMorseSequences || rawMorseSequences.length === 0) return;
-    
+    if (cwPlayback.type === 'phonetic') { playText(); return; }
+    if (cwPlayback.isPlaying) { stopCWPlayback(); return; }
+
+    const seq = window.playbackSequenceForCW;
+    if (!seq || seq.length === 0) return;
+
     cwPlayback.isPlaying = true;
+    cwPlayback.scheduledTimeouts = [];
     updatePlaybackUI('morse', true);
-    
-    playMorseSequence(rawMorseSequences, 0);
+    playSequence(seq, () => stopCWPlayback());
 }
 
-function playMorseSequence(sequences, index) {
-    if (!cwPlayback.isPlaying || index >= sequences.length) {
-        stopCWPlayback();
-        return;
-    }
-    
-    const morse = sequences[index];
-    if (!morse) {
-        setTimeout(() => playMorseSequence(sequences, index + 1), 100);
-        return;
-    }
-    
-    let delay = 0;
-    const ditDuration = 1200 / cwPlayback.wpm; // ms
-    
-    // Play each symbol
-    for (let i = 0; i < morse.length; i++) {
-        const symbol = morse[i];
-        if (symbol === '.') {
-            setTimeout(() => playBeep(cwPlayback.frequency, ditDuration), delay);
-            delay += ditDuration;
-        } else if (symbol === '-') {
-            setTimeout(() => playBeep(cwPlayback.frequency, ditDuration * 3), delay);
-            delay += ditDuration * 3;
+// ---------------------------------------------------------------------------
+// Core sequence player — handles both prosign (fused) and normal words
+// seq: [{symbols: string[], isProsign: bool}, ...]
+// onDone: optional callback
+// ---------------------------------------------------------------------------
+function playSequence(seq, onDone) {
+    const dit = 1200 / cwPlayback.wpm; // ms per dit
+    let cursor = 0; // absolute time cursor in ms
+
+    for (let i = 0; i < seq.length; i++) {
+        const item = seq[i];
+
+        if (item.isProsign) {
+            // Prosign: single fused Morse string e.g. '.-.-.'
+            // Play dot/dash with intra-symbol gaps but NO intra-character gap between letters
+            const s = item.symbols[0];
+            for (let k = 0; k < s.length; k++) {
+                const sym = s[k];
+                if (sym === '.') {
+                    scheduleBeep(cursor, dit);
+                    cursor += dit;
+                } else if (sym === '-') {
+                    scheduleBeep(cursor, dit * 3);
+                    cursor += dit * 3;
+                }
+                // intra-symbol gap after every element except last
+                if (k < s.length - 1) cursor += dit;
+            }
+            // Inter-element gap after prosign (3 dits = inter-character gap)
+            cursor += dit * 3;
+
+        } else {
+            // Normal word: each symbol is one character's morse e.g. '.-'
+            for (let s = 0; s < item.symbols.length; s++) {
+                const charMorse = item.symbols[s];
+                for (let k = 0; k < charMorse.length; k++) {
+                    const sym = charMorse[k];
+                    if (sym === '.') {
+                        scheduleBeep(cursor, dit);
+                        cursor += dit;
+                    } else if (sym === '-') {
+                        scheduleBeep(cursor, dit * 3);
+                        cursor += dit * 3;
+                    }
+                    // intra-character gap (1 dit) between dots/dashes within same char
+                    if (k < charMorse.length - 1) cursor += dit;
+                }
+                // inter-character gap (3 dits total; we already consumed 1 dit above)
+                cursor += dit * 2;
+            }
+            // inter-word gap (7 dits total; we already have 3 from last char gap)
+            cursor += dit * 4;
         }
-        delay += ditDuration; // Intra-character gap
     }
-    
-    // Inter-character gap
-    delay += ditDuration * 2;
-    
-    setTimeout(() => playMorseSequence(sequences, index + 1), delay);
+
+    if (onDone) {
+        setTimeout(onDone, cursor + 100);
+    }
+}
+
+function scheduleBeep(delayMs, durationMs) {
+    const id = setTimeout(() => playBeep(cwPlayback.frequency, durationMs), delayMs);
+    cwPlayback.scheduledTimeouts.push(id);
 }
 
 function playBeep(frequency, duration) {
@@ -355,97 +547,82 @@ function playBeep(frequency, duration) {
         if (!cwPlayback.audioContext) {
             cwPlayback.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         }
-        
-        const oscillator = cwPlayback.audioContext.createOscillator();
-        const gainNode = cwPlayback.audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(cwPlayback.audioContext.destination);
-        
-        oscillator.frequency.value = frequency;
-        oscillator.type = 'sine';
-        
+        const osc  = cwPlayback.audioContext.createOscillator();
+        const gain = cwPlayback.audioContext.createGain();
+        osc.connect(gain);
+        gain.connect(cwPlayback.audioContext.destination);
+        osc.frequency.value = frequency;
+        osc.type = 'sine';
         const now = cwPlayback.audioContext.currentTime;
-        gainNode.gain.setValueAtTime(0, now);
-        gainNode.gain.linearRampToValueAtTime(0.3, now + 0.001);
-        gainNode.gain.setValueAtTime(0.3, now + duration/1000 - 0.001);
-        gainNode.gain.linearRampToValueAtTime(0, now + duration/1000);
-        
-        oscillator.start(now);
-        oscillator.stop(now + duration/1000);
-    } catch (error) {
-        console.error('Audio error:', error);
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(0.3, now + 0.001);
+        gain.gain.setValueAtTime(0.3, now + duration/1000 - 0.001);
+        gain.gain.linearRampToValueAtTime(0, now + duration/1000);
+        osc.start(now);
+        osc.stop(now + duration/1000);
+    } catch (err) {
+        console.error('Audio error:', err);
     }
 }
 
 function stopCWPlayback() {
     if (cwPlayback.isPlaying) {
         cwPlayback.isPlaying = false;
+        cwPlayback.scheduledTimeouts.forEach(id => clearTimeout(id));
+        cwPlayback.scheduledTimeouts = [];
         updatePlaybackUI('morse', false);
     }
 }
 
-// UI Functions
+// ---------------------------------------------------------------------------
+// UI helpers
+// ---------------------------------------------------------------------------
 function updatePlaybackUI(type, isPlaying) {
-    const playBtn = document.getElementById(`play-${type === 'text' ? 'text' : 'morse'}-btn`);
-    const stopBtn = document.getElementById(`stop-${type === 'text' ? 'text' : 'morse'}-btn`);
+    const key = type === 'text' ? 'text' : 'morse';
+    const playBtn   = document.getElementById(`play-${key}-btn`);
+    const stopBtn   = document.getElementById(`stop-${key}-btn`);
     const statusDot = document.getElementById(`${type}-status-dot`);
-    const statusText = document.getElementById(`${type}-status-text`);
-    
+    const statusTxt = document.getElementById(`${type}-status-text`);
+
     if (isPlaying) {
         playBtn.disabled = true;
         stopBtn.disabled = false;
         statusDot.classList.add('playing');
-        statusText.textContent = 'Playing';
+        statusTxt.textContent = 'Playing';
     } else {
         playBtn.disabled = false;
         stopBtn.disabled = true;
         statusDot.classList.remove('playing');
-        statusText.textContent = 'Ready';
+        statusTxt.textContent = 'Ready';
     }
 }
 
 function copyToClipboard(elementId) {
-    const element = document.getElementById(elementId);
-    let text = '';
-    
-    if (elementId === 'expandedText') {
-        text = stripHtml(element.innerHTML);
-    } else {
-        text = element.textContent || '';
-    }
-    
+    const el = document.getElementById(elementId);
+    const text = elementId === 'expandedText'
+        ? stripHtml(el.innerHTML).replace(/[⟨⟩]/g, '')
+        : (el.textContent || '');
+
     navigator.clipboard.writeText(text).then(() => {
-        // Simple feedback
-        const original = elementId === 'expandedText' ? element.innerHTML : element.textContent;
-        if (elementId === 'expandedText') {
-            element.innerHTML = '✓ Copied!';
-        } else {
-            element.textContent = '✓ Copied!';
-        }
+        const original = elementId === 'expandedText' ? el.innerHTML : el.textContent;
+        if (elementId === 'expandedText') el.innerHTML = '✓ Copied!';
+        else el.textContent = '✓ Copied!';
         setTimeout(() => {
-            if (elementId === 'expandedText') {
-                element.innerHTML = original;
-            } else {
-                element.textContent = original;
-            }
+            if (elementId === 'expandedText') el.innerHTML = original;
+            else el.textContent = original;
         }, 1000);
     });
 }
 
+// ---------------------------------------------------------------------------
 // Cleanup
+// ---------------------------------------------------------------------------
 window.addEventListener('beforeunload', () => {
     stopTextPlayback();
     stopCWPlayback();
-    if (cwPlayback.audioContext) {
-        cwPlayback.audioContext.close();
-    }
+    if (cwPlayback.audioContext) cwPlayback.audioContext.close();
 });
 
-// Pause playback when page is hidden
 document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-        stopTextPlayback();
-        stopCWPlayback();
-    }
+    if (document.hidden) { stopTextPlayback(); stopCWPlayback(); }
 });
