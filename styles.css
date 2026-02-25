@@ -772,3 +772,61 @@ textarea {
         min-height: 350px;
     }
 }
+
+/* =============================================================
+   NEW — appended for v1.8 prosign support
+   ============================================================= */
+
+/* Larger textarea to fit templates without scrolling */
+textarea {
+    min-height: 180px;
+}
+
+/* Prosign highlight in expanded text output */
+.prosign {
+    color: #00ccff;
+    font-weight: bold;
+    letter-spacing: 0.03em;
+}
+
+/* Prosign chip bar below textarea */
+.prosign-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 5px;
+}
+
+.prosign-btn {
+    background: transparent;
+    border: 1px solid #1a4a55;
+    color: #4ab8cc;
+    border-radius: 4px;
+    padding: 2px 7px;
+    cursor: pointer;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    font-weight: bold;
+    line-height: 1.6;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.prosign-btn:hover {
+    background: #0e2a35;
+    border-color: #00ccff;
+    color: #00eeff;
+}
+
+.prosign-btn:active {
+    background: #0a3d4d;
+}
+
+.prosign-tooltip {
+    margin-top: 4px;
+    font-size: 0.68rem;
+    color: #4a8a9a;
+    min-height: 1em;
+    font-style: italic;
+    line-height: 1.3;
+}
