@@ -47,7 +47,6 @@ const prosignLabels = {
     '<AS>': { label: 'AS',  title: 'Wait / stand by', type: 'ITU formal', usage: 'pause or pending message' },
     '<VA>': { label: 'VA',  title: 'End of transmission — no reply expected (formal ITU signal)', type: 'ITU formal', usage: 'bulletins, announcements, final transmission; formal QSO closure' },
     '<SK>': { label: 'SK',  title: 'End of contact (common amateur prosign; same signal as VA)', type: 'amateur operational', usage: 'common QSO closing in amateur CW; identical Morse to VA' },
-    '<VE>': { label: 'VE',  title: 'Obsolete / rarely used procedural signal — not used in modern CW', type: 'obsolete', usage: 'historical reference only' },
     '<R>':  { label: 'R',   title: 'Understood / acknowledged (ITU formal)', type: 'ITU formal', usage: 'acknowledgment of message' }
 };
 
