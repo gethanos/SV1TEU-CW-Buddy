@@ -32,17 +32,20 @@ See the LICENSE file in the repository root for full license text.
                     <div class="section">
                         <h2><i class="fas fa-sliders-h"></i> QSO Configuration</h2>
                         <div class="form-group">
-        				<label for="profile"><i class="fas fa-route"></i> QSO Mode</label>
-	        			<select id="profile">
-		        		  <option value="short">Short (Mid‑QSO overs)</option>
-			        	  <option value="relaxed" selected>Relaxed (Full QSO / Ragchew)</option>
-				          <option value="formal">Formal (Procedure / Etiquette)</option>
-	        			  <option value="custom">Write your own (Custom)</option>
-			        	</select>
+			<label for="profile"><i class="fas fa-route"></i> QSO Mode</label>
+			<select id="profile">
+			  <option value="short">Short (Mid‑QSO overs)</option>
+			  <option value="relaxed" selected>Relaxed (Full QSO / Ragchew)</option>
+			  <option value="formal">Formal (Correct ITU Procedure &amp; Prosigns)</option>
+			  <option value="custom">Write your own (Custom)</option>
+			</select>
                         </div>
                         <div class="form-group">
                             <label for="qsoText"><i class="fas fa-code"></i> QSO Template</label>
                             <textarea id="qsoText" placeholder="Write your custom QSO template here..."></textarea>
+                            <!-- Prosign chips — click to insert at cursor -->
+                            <div class="prosign-bar" id="prosign-toolkit-buttons"></div>
+                            <div id="prosign-tooltip" class="prosign-tooltip"></div>
                         </div>
                     </div>
                     
@@ -200,8 +203,9 @@ See the LICENSE file in the repository root for full license text.
                     
                     <!-- Footer with branding -->
                     <div class="branding-footer">
-                        <p>Created by Georgalas Athanasios Antonios, SV1TEU</p>
-                        <p class="version">v1.6</p>
+                        <p>Created by Georgalas Athanasios Antonios, SV1TEU - <a target="Blank_" href="https://github.com/gethanos/SV1TEU-CW-Buddy/blob/main/HELP.md">Documentation</a></p>
+                        <p class="version">v1.7dev - MIT License <a target="blank_" href="https://github.com/gethanos/SV1TEU-CW-Buddy">Github page</a>
+		</p>
                     </div>
                 </div>
             </div>
