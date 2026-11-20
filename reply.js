@@ -233,8 +233,8 @@ See the LICENSE file in the repository root for full license text.
           : "No signal estimate available, so the usual 5NN. Edit it freely.";
 
       renderChips();
-      const details = [$("myName").value, $("myQTH").value].filter((v) => v && v.trim()).join(" · ");
-      els.details.textContent = details || "Add name and QTH";
+      const details = [$("myCall").value, $("myName").value, $("myQTH").value].filter((v) => v && v.trim()).join(" · ");
+      els.details.textContent = details || "Add callsign, name and QTH";
 
       const lines = buildReply({
         stage: heard ? heard.stage : "answer", dx, my: myCall(), rst, style: style(),
@@ -244,7 +244,7 @@ See the LICENSE file in the repository root for full license text.
       over = core.buildOver(lines);
       els.empty.hidden = lines.length > 0;
       els.list.hidden = lines.length === 0;
-      els.empty.textContent = myCall() ? "Your reply appears here once a callsign is decoded. You can also type their callsign above." : "Set your callsign in Practice first.";
+      els.empty.textContent = myCall() ? "Your reply appears here once a callsign is decoded. You can also type their callsign above." : "Set your callsign first: use Edit under Your station.";
       practice.renderOver(els.list, over, { showMorse: true, highlightCalls: [dx, myCall()] });
       if (els.ready) els.ready.hidden = lines.length === 0;
 
@@ -278,7 +278,7 @@ See the LICENSE file in the repository root for full license text.
       rstOverride = v || null;
       update();
     });
-    els.edit.addEventListener("click", () => app.showView("practice", "myName"));
+    els.edit.addEventListener("click", () => app.openStation(els.edit));
     els.copy.addEventListener("click", () => app.copy(practice.overAsText(over), els.copy));
     els.copyMorse.addEventListener("click", () => app.copy(practice.overAsMorse(over), els.copyMorse));
 

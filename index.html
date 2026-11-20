@@ -163,8 +163,8 @@ See the LICENSE file in the repository root for full license text.
               <input id="replyRst" class="mono input-strong input-rst" autocomplete="off" spellcheck="false" autocapitalize="characters" aria-describedby="rstHint">
             </div>
             <div class="field">
-              <span class="field-label">Your details</span>
-              <button type="button" id="replyEditDetails" class="btn btn-field"><span id="replyDetails">Add name and QTH</span><span class="hint push">Edit</span></button>
+              <span class="field-label">Your station</span>
+              <button type="button" id="replyEditDetails" class="btn btn-field" aria-haspopup="dialog"><span id="replyDetails">Add callsign, name and QTH</span><span class="hint push">Edit</span></button>
             </div>
           </div>
           <p id="rstHint" class="hint rst-hint"></p>
@@ -204,8 +204,8 @@ See the LICENSE file in the repository root for full license text.
         <p id="modeHint" class="hint"></p>
 
         <div class="grid-2">
-          <div class="field"><label for="myCall">Your callsign</label><input id="myCall" class="mono" value="SV1TEU" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
-          <div class="field"><label for="dxCall">Their callsign</label><input id="dxCall" class="mono" value="SV1TJN" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
+          <div class="field"><label for="myCall">Your callsign</label><input id="myCall" class="mono" placeholder="Your callsign" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
+          <div class="field"><label for="dxCall">Their callsign</label><input id="dxCall" class="mono" placeholder="Their callsign" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
           <div class="field"><label for="myRST">RST sent</label><input id="myRST" class="mono" value="5NN" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
           <div class="field"><label for="myName">Name</label><input id="myName" placeholder="e.g. Thanos" autocomplete="off"></div>
         </div>
@@ -266,6 +266,28 @@ See the LICENSE file in the repository root for full license text.
     </section>
   </main>
 </div>
+
+<!-- ============================ Your station ============================ -->
+<dialog id="stationDialog" class="sheet" aria-labelledby="stationTitle">
+  <form id="stationForm" method="dialog" class="sheet-form" novalidate>
+    <div class="sheet-head">
+      <h2 id="stationTitle">Your station</h2>
+      <button type="button" id="stationCancel" class="btn push">Cancel</button>
+      <button type="submit" id="stationSave" class="btn btn-primary">
+        <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>Save
+      </button>
+    </div>
+    <p class="hint">Used in your reply and in Practice.</p>
+
+    <div class="field"><label for="stCall">Your callsign</label><input id="stCall" class="mono input-strong" placeholder="e.g. SV1ABC" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
+    <div class="grid-2">
+      <div class="field"><label for="stName">Name</label><input id="stName" placeholder="e.g. Thanos" autocomplete="off"></div>
+      <div class="field"><label for="stQth">QTH</label><input id="stQth" placeholder="e.g. Athens" autocomplete="off"></div>
+    </div>
+    <div class="field"><label for="stRig">Rig, power, antenna</label><input id="stRig" placeholder="e.g. Xiegu G90 10W EFHW" autocomplete="off"></div>
+    <label class="check"><input type="checkbox" id="stHwcpy"> End with “HW CPY?”</label>
+  </form>
+</dialog>
 
 <!-- ============================ Settings ============================ -->
 <dialog id="settingsDialog" class="sheet" aria-labelledby="settingsTitle">

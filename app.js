@@ -206,6 +206,56 @@ See the LICENSE file in the repository root for full license text.
   }
 
   // -------------------------------------------------------------------------
+  // Your station dialog: edits the same fields as Practice, saved explicitly
+  // -------------------------------------------------------------------------
+  const STATION_FIELDS = [["stCall", "myCall"], ["stName", "myName"], ["stQth", "myQTH"], ["stRig", "myRIG"]];
+
+  function initStationDialog() {
+    const dialog = $("stationDialog");
+    if (!dialog) return;
+    const form = $("stationForm");
+    let opener = null;
+
+    const open = (from) => {
+      opener = from || document.activeElement;
+      for (const [st, src] of STATION_FIELDS) if ($(src)) $(st).value = $(src).value;
+      $("stHwcpy").checked = $("hwcpy").checked;
+      if (dialog.showModal) dialog.showModal(); else dialog.setAttribute("open", "");
+      const first = $("stCall").value ? $("stName") : $("stCall");
+      first.focus();
+    };
+    const close = () => {
+      if (dialog.close) dialog.close(); else dialog.removeAttribute("open");
+      if (opener && opener.focus) opener.focus();
+    };
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      for (const [st, src] of STATION_FIELDS) {
+        const target = $(src);
+        let v = $(st).value.trim();
+        if (st === "stCall") v = v.toUpperCase();
+        if (target.value !== v) {
+          target.value = v;
+          target.dispatchEvent(new Event("input", { bubbles: true })); // Practice saves it and rebuilds the over
+        }
+      }
+      const hw = $("stHwcpy").checked;
+      if ($("hwcpy").checked !== hw) {
+        $("hwcpy").checked = hw;
+        $("hwcpy").dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      close();
+      announce("Station details saved");
+    });
+    $("stationCancel").addEventListener("click", close);
+    dialog.addEventListener("click", (e) => { if (e.target === dialog) close(); });
+    dialog.addEventListener("cancel", (e) => { e.preventDefault(); close(); }); // Escape
+
+    root.CWBuddyApp.openStation = open;
+  }
+
+  // -------------------------------------------------------------------------
   // Init
   // -------------------------------------------------------------------------
   function initApp() {
@@ -227,6 +277,8 @@ See the LICENSE file in the repository root for full license text.
     $("settingsClose").addEventListener("click", close);
     dialog.addEventListener("click", (e) => { if (e.target === dialog) close(); });
     document.addEventListener("keydown", (e) => { if (e.key === "Escape" && dialog.hasAttribute("open") && !dialog.close) close(); });
+
+    initStationDialog();
 
     // Engine
     for (const name of ["engine", "engineSheet"]) {
