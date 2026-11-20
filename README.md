@@ -1,54 +1,55 @@
 # SV1TEU CW Buddy
 
-A web-based CW (Morse Code) training and QSO assistant for radio amateurs.
+Decode CW from your microphone and get your reply ready to send, as text and Morse. Practice full QSOs at any speed. It runs in the browser, works offline, and audio never leaves your device.
 
+**Live:** [cw-buddy.sv1teu.me](https://cw-buddy.sv1teu.me/) · **Help:** [HELP.md](HELP.md)
 
-Designed for:
-- CW practice
-- QSO text generation
-- Live CW audio playback
-- CW decoding via microphone
+## What it does
 
-## 🚀 SV1TEU CW Buddy v1.7 Released!
-Brand-new CW decoder with multi-speed decoding (5–33 WPM), auto-locking best speed, live frequency tracking, smarter scoring, cleaner UI, and major stability improvements.
+**Decode**
+- Two decoders: an **AI** engine (the DeepCW neural model) that copies weak, noisy and fading signals, and a **Classic** multi-speed decoder that is instant and decodes prosigns. **Auto** picks the right one and falls back to Classic on slow devices.
+- A **waterfall** with automatic tuning; click a signal to decode it.
+- **Your reply**, built as you listen: it picks out their callsign, whether they are calling you, your report, their name and QTH, and writes the over to send back (Short, Relaxed or Formal) with the Morse under every line. The RST you send is estimated from the received signal and clearly marked as an estimate.
 
-## 🚀 Live Demo
-https://cw-buddy.sv1teu.me/
+**Practice**
+- QSO templates (Short, Relaxed, Formal ITU procedure, or your own) filled with your station details.
+- Prosigns (`<KA>`, `<AR>`, `<BT>`, `<KN>`, `<SK>`, ...) sent as single characters.
+- Play as CW (5 to 40 WPM, 300 to 1200 Hz) with word-by-word highlighting, or as voice with phonetic callsigns.
 
-## ✨ Features
-- Generate realistic CW QSO text
-- Adjustable WPM and tone frequency
-- Play CW audio directly in the browser
-- Decode CW from microphone input
-- No installation – works in modern browsers
+## Run it yourself
 
-## 🧑‍🚀 Who is this for?
-- Amateur radio operators learning or practicing CW
-- Operators who want realistic CW QSO practice
-- Anyone interested in Morse Code and Web Audio
+Any static web server works. For a laptop or a Raspberry Pi in the field, use the included server; no internet connection is needed:
 
-## 📘 Before you ask for help 🙂
+```bash
+git clone https://github.com/gethanos/SV1TEU-CW-Buddy.git
+cd SV1TEU-CW-Buddy
+python3 scripts/serve.py            # browser on this machine: http://localhost:8000
+python3 scripts/serve.py --https    # phones on the same Wi-Fi: https://<this-ip>:8443
+```
 
-CW decoding in a browser is tricky by nature.
+Browsers only allow the microphone on `https://` or `localhost`. `--https` creates a self-signed certificate (needs `openssl`); accept the warning once per device. On your own web server, make sure `.mjs` is served as `text/javascript` and `.wasm` as `application/wasm`.
 
-If you experience **decoder issues**, microphone problems, or unexpected behavior,
-please **read the `HELP.md` file first**.
+## Project layout
 
-📘 Decoder Help: [HELP.md](HELP.md)
+| Path | Purpose |
+|---|---|
+| `index.html`, `app.css`, `app.js` | Page, styles, screens and settings |
+| `practice.js`, `reply.js` | Practice over builder; Your reply (reads the decode, builds the reply) |
+| `cw-core.js` | Morse tables, CW tone player, speech |
+| `decoder-controller.js`, `waterfall.js` | Microphone, engine choice and fallback, waterfall |
+| `ai-decoder-*.js`, `ai-capture-worklet.js`, `splitter.js` | AI engine: audio capture, model runner, word splitter |
+| `cw-decoder.js` | Classic engine |
+| `models/`, `vendor/` | DeepCW model, ONNX Runtime Web, fonts (refresh with `scripts/fetch-*.sh`) |
+| `scripts/serve.py` | Offline web server |
+| `tests/` | `node tests/splitter.test.js`, `node tests/reply.test.js` |
 
-It contains:
-- Decoder limitations and expectations
-- Audio & microphone setup tips
-- Common mistakes and how to fix them
-- A dedicated **Troubleshooting** section with real solutions
+## Credits
 
-👉 Most decoder issues are already covered there.
- 
-## Files
-- `index.html` — UI layout
-- `styles.css` — styling
-- `script.js` — template expansion, Morse generation, playback, UI actions
-- `cw-decoder.js` — microphone CW decoder (browser Audio APIs)
+- AI decoding uses the **DeepCW** model and pipeline by **e04** ([deepcw-engine](https://github.com/e04/deepcw-engine), [web-deep-cw-decoder](https://github.com/e04/web-deep-cw-decoder)), MIT License.
+- Model runtime: **ONNX Runtime Web** by Microsoft, MIT License. Fonts: **Inter** and **JetBrains Mono**, SIL OFL 1.1.
+
+Full licence texts are in [NOTICE](NOTICE).
 
 ## License
-MIT License — see the `LICENSE` file.
+
+MIT © Georgalas Athanasios Antonios, SV1TEU. See [LICENSE](LICENSE).
