@@ -43,7 +43,9 @@ See the LICENSE file in the repository root for full license text.
       "-----": "0", ".----": "1", "..---": "2", "...--": "3", "....-": "4",
       ".....": "5", "-....": "6", "--...": "7", "---..": "8", "----.": "9",
       "-..-.": "/", "-...-": "=", "..--..": "?", ".-.-.-": ".", "--..--": ",",
-      "---...": ":", "-.-.-.": ";", ".----.": "'", "-....-": "-"
+      "---...": ":", "-.-.-.": ";", ".----.": "'", "-....-": "-",
+      // Prosigns sent as one fused character (same codes the generator uses)
+      ".-.-.": "<AR>", "-.--.": "<KN>", "...-.-": "<SK>"
     };
 
     // FAST FREQUENCY TRACKING - With auto-reset
@@ -368,7 +370,8 @@ See the LICENSE file in the repository root for full license text.
             this.offCandidateFrames++;
             this.onCandidateFrames = 0;
           } else {
-            this.onCandidateFrames = 0;
+            // level rebounded: off-candidates must be consecutive
+            this.offCandidateFrames = 0;
           }
         }
 
@@ -595,7 +598,7 @@ See the LICENSE file in the repository root for full license text.
         }
         
         // Common procedural words
-        const procedures = ['CQ', 'DE', 'PSE', 'K', 'BK', 'AR', 'SK', 'TU', 'TNX', 'AGN'];
+        const procedures = ['CQ', 'DE', 'PSE', 'K', 'BK', 'AR', 'SK', 'TU', 'TNX', 'AGN', '<AR>', '<KN>', '<SK>'];
         if (procedures.includes(word)) wordScore += 50;
         
         // RST
@@ -794,7 +797,7 @@ See the LICENSE file in the repository root for full license text.
         // Track if this decoder should become sticky
         if (decoderIndex === this.bestDecoderIndex) {
           this.wordsFromSticky++;
-          if (this.wordsFromSticky >= this.minStickyWords && myCurrentScore > 200) {
+          if (this.wordsFromSticky >= this.minStickyWords && myCurrentScore >= 200) {
             // This decoder has produced 5+ good words with high score - make it sticky
             this.stickyDecoderIndex = this.bestDecoderIndex;
           }
@@ -987,6 +990,12 @@ See the LICENSE file in the repository root for full license text.
 
         } catch (error) {
           console.error("Error:", error);
+          // Don't leak the silence-check interval if start() failed (e.g. mic denied)
+          if (multiDecoder && multiDecoder.silenceCheckInterval) {
+            clearInterval(multiDecoder.silenceCheckInterval);
+          }
+          multiDecoder = null;
+          detector = null;
           if (isLikelyInAppBrowser) {
             showOpenInBrowserHelp();
           } else {
