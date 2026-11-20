@@ -44,8 +44,10 @@ See the LICENSE file in the repository root for full license text.
       ".....": "5", "-....": "6", "--...": "7", "---..": "8", "----.": "9",
       "-..-.": "/", "-...-": "=", "..--..": "?", ".-.-.-": ".", "--..--": ",",
       "---...": ":", "-.-.-.": ";", ".----.": "'", "-....-": "-",
-      // Prosigns sent as one fused character (same codes the generator uses)
-      ".-.-.": "<AR>", "-.--.": "<KN>", "...-.-": "<SK>"
+      // Prosigns sent as one fused character (same codes the generator uses).
+      // <BT> (-...-) decodes as "=" above; <VA> shares its code with <SK>.
+      ".-.-.": "<AR>", "-.--.": "<KN>", "...-.-": "<SK>",
+      "-.-.-": "<KA>", ".-...": "<AS>", "...-.": "<VE>"
     };
 
     // FAST FREQUENCY TRACKING - With auto-reset
@@ -451,29 +453,72 @@ See the LICENSE file in the repository root for full license text.
         
         // Adaptive gap thresholds
         this.gapSamples = [];
-        this.maxGapSamples = 10;
-        this.charGapMin = this.ditLength * 2.5;
-        this.wordGapMin = this.ditLength * 6.0;
+        this.maxGapSamples = 30;
+        this.gapSampleCount = 0; // monotonic, drives periodic threshold updates
+        // Start at the midpoints of standard spacing (1/3 and 3/7 dits)
+        this.charGapMin = this.ditLength * 2.0;
+        this.wordGapMin = this.ditLength * 5.0;
         this.transmissionGapMin = this.ditLength * 15.0;
         
         // Full output (never reset)
         this.fullOutput = "";
       }
 
+      // Gaps come in up to three clusters: intra-character (~1 dit),
+      // inter-character (~3 dits, more with Farnsworth) and inter-word (~7 dits).
+      // Split the sorted samples at ratio jumps and place each threshold
+      // midway between neighbouring clusters.
       updateGapThresholds() {
-        if (this.gapSamples.length < 5) return;
-        
-        const sortedGaps = [...this.gapSamples].sort((a, b) => a - b);
-        const medianGap = sortedGaps[Math.floor(sortedGaps.length / 2)];
-        const estimatedDit = medianGap / 3;
-        
-        this.charGapMin = estimatedDit * 2.2;
-        this.wordGapMin = estimatedDit * 5.5;
-        this.transmissionGapMin = estimatedDit * 15.0;
-        
-        this.charGapMin = Math.max(this.charGapMin, this.ditLength * 2.0);
-        this.wordGapMin = Math.max(this.wordGapMin, this.ditLength * 5.0);
-        this.transmissionGapMin = Math.max(this.transmissionGapMin, this.ditLength * 12.0);
+        const n = this.gapSamples.length;
+        if (n < 8) return;
+
+        const s = [...this.gapSamples].sort((a, b) => a - b);
+        const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+
+        // First split: intra-char vs the rest. Scan from the bottom and require
+        // the low cluster to hold >= 20% of samples, so a few short dropout
+        // gaps cannot pose as the intra-character cluster.
+        let split1 = -1;
+        for (let i = Math.max(1, Math.ceil(n * 0.2)); i < n; i++) {
+          if (s[i] / s[i - 1] > 1.6) { split1 = i; break; }
+        }
+        if (split1 < 0) return; // no clear structure yet, keep current thresholds
+
+        const intra = mean(s.slice(0, split1));
+
+        // This decoder only makes sense near its own speed; don't let a
+        // mismatched decoder adapt to someone else's timing.
+        if (intra < this.ditLength * 0.5 || intra > this.ditLength * 2.0) return;
+
+        // Optional second split: inter-char vs inter-word.
+        let split2 = -1;
+        for (let i = split1 + 1; i < n; i++) {
+          if (s[i] / s[i - 1] > 1.5) { split2 = i; break; }
+        }
+        let charGap, wordGap;
+        if (split2 > 0) {
+          charGap = mean(s.slice(split1, split2));
+          wordGap = mean(s.slice(split2));
+        } else {
+          // Only one cluster above intra. Decide whether it is character gaps
+          // or word gaps (e.g. a run of prosigns has no character gaps).
+          const high = mean(s.slice(split1));
+          if (high / intra < 4.5) {
+            charGap = high;
+            wordGap = high * (7 / 3);
+          } else {
+            charGap = intra * 3;
+            wordGap = high;
+          }
+        }
+
+        this.charGapMin = (intra + charGap) / 2;
+        this.wordGapMin = (charGap + wordGap) / 2;
+        this.transmissionGapMin = Math.max(wordGap * 2, this.ditLength * 12.0);
+
+        // Sanity floors relative to this decoder's nominal dit
+        this.charGapMin = Math.max(this.charGapMin, this.ditLength * 1.5);
+        this.wordGapMin = Math.max(this.wordGapMin, this.charGapMin * 1.5);
       }
 
       addTiming(duration, isSignal) {
@@ -495,13 +540,16 @@ See the LICENSE file in the repository root for full license text.
           }
           
         } else {
-          if (this.currentCode.length > 0) {
+          if (this.currentCode.length > 0 && duration < this.transmissionGapMin) {
             this.gapSamples.push(duration);
             if (this.gapSamples.length > this.maxGapSamples) {
               this.gapSamples.shift();
             }
-            
-            if (this.gapSamples.length % 3 === 0) {
+
+            // Counter, not buffer length: length stops changing once the
+            // buffer is full, which used to freeze adaptation.
+            this.gapSampleCount++;
+            if (this.gapSampleCount % 3 === 0) {
               this.updateGapThresholds();
             }
           }
@@ -598,7 +646,7 @@ See the LICENSE file in the repository root for full license text.
         }
         
         // Common procedural words
-        const procedures = ['CQ', 'DE', 'PSE', 'K', 'BK', 'AR', 'SK', 'TU', 'TNX', 'AGN', '<AR>', '<KN>', '<SK>'];
+        const procedures = ['CQ', 'DE', 'PSE', 'K', 'BK', 'AR', 'SK', 'TU', 'TNX', 'AGN', '=', '<AR>', '<KN>', '<SK>', '<KA>', '<AS>', '<VE>'];
         if (procedures.includes(word)) wordScore += 50;
         
         // RST
