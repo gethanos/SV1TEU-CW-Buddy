@@ -60,7 +60,26 @@ It contains:
 - `ai-decoder-core.js`: AI pipeline: tone finder, spectrogram, stitching, CTC decoding
 - `models/deepcw-narrow.onnx`: DeepCW narrow-band model (e04, MIT)
 - `vendor/ort/`: ONNX Runtime Web 1.24.3 (fetch with `scripts/fetch-ort.sh`)
+- `vendor/fontawesome/`: Font Awesome Free 6.0.0 (fetch with `scripts/fetch-fontawesome.sh`)
+- `scripts/serve.py`: offline web server (HTTP, or HTTPS with a self-signed certificate)
 - `NOTICE`: third-party attributions and licences
+
+## Run offline (e.g. Raspberry Pi in the field)
+
+Everything the app needs is in this repository: the AI model, ONNX Runtime and the icon fonts. No internet connection is needed once you have cloned it.
+
+```bash
+git clone https://github.com/gethanos/SV1TEU-CW-Buddy.git
+cd SV1TEU-CW-Buddy
+python3 scripts/serve.py            # browser on the Pi itself:  http://localhost:8000
+python3 scripts/serve.py --https    # phones/tablets on the Pi's Wi-Fi: https://<pi-ip>:8443
+```
+
+Browsers only allow the microphone on `https://` or `localhost`. Over plain `http://<pi-ip>` the decoder cannot start on other devices, so use `--https`. It creates a self-signed certificate in `.certs/` on first run (requires `openssl`); accept the browser warning once on each device. If the Pi's IP address changes, run it again with `--new-cert`.
+
+Notes:
+- Phonetic text playback uses the browser's speech voices. Offline it needs a voice installed on the device; some browsers' default voices are online-only.
+- To update the bundled libraries: `scripts/fetch-ort.sh` (ONNX Runtime Web) and `scripts/fetch-fontawesome.sh` (Font Awesome Free).
 
 ## Credits
 
@@ -71,7 +90,7 @@ It contains:
   from [web-deep-cw-decoder](https://github.com/e04/web-deep-cw-decoder).
   Try the full DeepCW decoder at [deepcw.cc](https://deepcw.cc/). MIT License.
 - **ONNX Runtime Web** by Microsoft runs the model in the browser (`vendor/ort/`). MIT License.
-- **Font Awesome Free** icons, loaded from cdnjs. Icons CC BY 4.0, fonts SIL OFL 1.1, code MIT.
+- **Font Awesome Free** 6.0.0 icons by Fonticons, Inc. (`vendor/fontawesome/`). Icons CC BY 4.0, fonts SIL OFL 1.1, code MIT.
 
 Full licence texts for third-party components are in [`NOTICE`](NOTICE).
 

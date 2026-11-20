@@ -58,3 +58,8 @@ This project includes third-party components:
    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
+
+3. Font Awesome Free 6.0.0 (vendor/fontawesome/)
+   Copyright (c) Fonticons, Inc. - https://fontawesome.com
+   Icons: CC BY 4.0. Fonts: SIL OFL 1.1. Code: MIT License.
+   Full licence text: vendor/fontawesome/LICENSE.txt
