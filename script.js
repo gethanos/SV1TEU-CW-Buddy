@@ -304,13 +304,13 @@ function updateOutput() {
     // Prosigns rendered with special styling <span class="prosign">⟨AR⟩</span>
     const displayLines = lines.map(line => {
         // First highlight prosigns
-        let display = line.replace(
-            /(<(?:AR|AS|BT|KA|KN|SK|VA|VE)>)/gi,
-            (m) => `<span class="prosign">\u27E8${m.slice(1,-1).toUpperCase()}\u27E9</span>`
+        let display = escapeHtml(line).replace(
+            /(&lt;(?:AR|AS|BT|KA|KN|SK|VA|VE)&gt;)/gi,
+            (m) => `<span class="prosign">\u27E8${m.slice(4,-4).toUpperCase()}\u27E9</span>`
         );
         // Then highlight callsigns
         display = display.replace(
-            new RegExp(`\\b(${data.MY}|${data.DX}|CQ)\\b`, 'gi'),
+            new RegExp(`\\b(${escapeRegExp(escapeHtml(data.MY))}|${escapeRegExp(escapeHtml(data.DX))}|CQ)\\b`, 'gi'),
             '<span class="callsign">$1</span>'
         );
         return display;
@@ -419,7 +419,7 @@ function expandCallsignsToPhonetic(text, callsigns) {
         if (!cs) continue;
         const phonetic = callsignToPhonetic(cs);
         // Replace whole-word occurrences only
-        result = result.replace(new RegExp(`\\b${cs}\\b`, 'gi'), phonetic);
+        result = result.replace(new RegExp(`\\b${escapeRegExp(cs)}\\b`, 'gi'), phonetic);
     }
     return result;
 }
@@ -446,9 +446,17 @@ function playText() {
 }
 
 function stripHtml(html) {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
+    // DOMParser output is inert (no image loads / handlers fire), unlike innerHTML on a detached element
+    return new DOMParser().parseFromString(html, 'text/html').body.textContent || '';
+}
+
+function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function escapeRegExp(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function stopTextPlayback() {
@@ -506,8 +514,8 @@ function playSequence(seq, onDone) {
                 // intra-symbol gap after every element except last
                 if (k < s.length - 1) cursor += dit;
             }
-            // Inter-element gap after prosign (3 dits = inter-character gap)
-            cursor += dit * 3;
+            // A prosign is a word-level unit: follow it with a full 7-dit word gap
+            cursor += dit * 7;
 
         } else {
             // Normal word: each symbol is one character's morse e.g. '.-'
@@ -525,10 +533,10 @@ function playSequence(seq, onDone) {
                     // intra-character gap (1 dit) between dots/dashes within same char
                     if (k < charMorse.length - 1) cursor += dit;
                 }
-                // inter-character gap (3 dits total; we already consumed 1 dit above)
-                cursor += dit * 2;
+                // inter-character gap: 3 dits (the last element above has no trailing gap)
+                cursor += dit * 3;
             }
-            // inter-word gap (7 dits total; we already have 3 from last char gap)
+            // inter-word gap: 7 dits total (3 from the last char gap + 4 here)
             cursor += dit * 4;
         }
     }
