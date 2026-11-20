@@ -199,8 +199,9 @@ See the LICENSE file in the repository root for full license text.
         return peakFreq;
       }
 
-      async start() {
-        this.stream = await navigator.mediaDevices.getUserMedia({
+      async start(sharedStream) {
+        this.ownsStream = !sharedStream;
+        this.stream = sharedStream || await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: false,
             noiseSuppression: false,
@@ -257,7 +258,7 @@ See the LICENSE file in the repository root for full license text.
         if (this.bandpassFilter) this.bandpassFilter.disconnect();
         if (this.compressor) this.compressor.disconnect();
         if (this.scriptNode) this.scriptNode.disconnect();
-        if (this.stream) this.stream.getTracks().forEach(t => t.stop());
+        if (this.stream && this.ownsStream) this.stream.getTracks().forEach(t => t.stop());
         if (this.audioContext) this.audioContext.close();
       }
 
@@ -975,100 +976,79 @@ See the LICENSE file in the repository root for full license text.
     overlay.classList.add("cw-decoded-overlay");
     statusEl.classList.add("cw-status-text");
 
-    startBtn.addEventListener("click", async () => {
-      if (!running && isLikelyInAppBrowser) {
-        showOpenInBrowserHelp();
-        return;
+    // Engine API: decoder-controller.js owns the Decode button and the
+    // microphone stream, and starts/stops this engine through it.
+    async function startClassic(sharedStream) {
+      if (running) return;
+      multiDecoder = new MultiDecoder({ onSmartWord: () => {} });
+      detector = new WideFilterDetector();
+
+      detector.onStateChange = (isOn) => {
+        const freq = detector.centerFrequency.toFixed(0);
+        statusEl.textContent = isOn ? `🔴 ${freq}Hz` : `⚪ ${freq}Hz`;
+        statusEl.style.color = isOn ? '#f44' : '#0f0';
+      };
+      detector.onTiming = (duration, isSignal) => {
+        if (multiDecoder) multiDecoder.addTiming(duration, isSignal);
+      };
+      detector.onReset = () => {};
+
+      try {
+        await detector.start(sharedStream);
+      } catch (error) {
+        // Don't leak the silence-check interval if start() failed (e.g. mic denied)
+        if (multiDecoder && multiDecoder.silenceCheckInterval) {
+          clearInterval(multiDecoder.silenceCheckInterval);
+        }
+        multiDecoder = null;
+        detector = null;
+        throw error;
       }
 
-      if (!running) {
-        try {
-          statusEl.textContent = "Requesting microphone…";
-          statusEl.style.color = "#aaa";
+      running = true;
+      controlsWrapper.hidden = false;
+      statusEl.textContent = '⚪ Ready';
+      statusEl.style.color = '#0f0';
+      debugDiv.textContent = "";
 
-          multiDecoder = new MultiDecoder({
-            onSmartWord: (word) => {
-              // Smart word output is handled in getAllOutputs
-            }
-          });
-
-          detector = new WideFilterDetector();
-          
-          detector.onStateChange = (isOn, level, threshold) => {
-            const freq = detector.centerFrequency.toFixed(0);
-            statusEl.textContent = isOn ? `🔴 ${freq}Hz` : `⚪ ${freq}Hz`;
-            statusEl.style.color = isOn ? '#f44' : '#0f0';
-          };
-          
-          detector.onTiming = (duration, isSignal) => {
-            if (multiDecoder) {
-              multiDecoder.addTiming(duration, isSignal);
-            }
-          };
-
-          detector.onReset = () => {};
-
-          await detector.start();
-
-          running = true;
-          startBtn.classList.add("active");
-          startBtn.innerHTML = '<i class="fas fa-microphone-slash"></i> Stop';
-          statusEl.textContent = '⚪ Ready';
-          statusEl.style.color = '#0f0';
-          debugDiv.textContent = ""; // Clear debug info
-
-          // Update the full overlay with all decoders
-          displayInterval = setInterval(() => {
-            if (multiDecoder) {
-              overlay.textContent = multiDecoder.getAllOutputs(showAllCheckbox.checked);
-              // Toggle expanded class based on checkbox
-              if (showAllCheckbox.checked) {
-                overlay.classList.add("expanded");
-              } else {
-                overlay.classList.remove("expanded");
-              }
-              // Auto-scroll to the right for horizontal scrolling when in single line mode
-              if (!showAllCheckbox.checked) {
-                overlay.scrollLeft = overlay.scrollWidth;
-              } else {
-                overlay.scrollTop = overlay.scrollHeight;
-              }
-            }
-          }, 500);
-
-        } catch (error) {
-          console.error("Error:", error);
-          // Don't leak the silence-check interval if start() failed (e.g. mic denied)
-          if (multiDecoder && multiDecoder.silenceCheckInterval) {
-            clearInterval(multiDecoder.silenceCheckInterval);
-          }
-          multiDecoder = null;
-          detector = null;
-          if (isLikelyInAppBrowser) {
-            showOpenInBrowserHelp();
-          } else {
-            statusEl.textContent = error.message || "microphone error";
-            statusEl.style.color = "#f44";
-          }
+      displayInterval = setInterval(() => {
+        if (!multiDecoder) return;
+        overlay.textContent = multiDecoder.getAllOutputs(showAllCheckbox.checked);
+        overlay.classList.toggle("expanded", showAllCheckbox.checked);
+        if (!showAllCheckbox.checked) {
+          overlay.scrollLeft = overlay.scrollWidth;
+        } else {
+          overlay.scrollTop = overlay.scrollHeight;
         }
-      } else {
-        detector.stop();
-        if (multiDecoder) {
-          // Clear the silence check interval
-          if (multiDecoder.silenceCheckInterval) {
-            clearInterval(multiDecoder.silenceCheckInterval);
-          }
-          multiDecoder.forceComplete();
-        }
-        if (displayInterval) clearInterval(displayInterval);
+      }, 500);
+    }
 
-        running = false;
-        startBtn.classList.remove("active");
-        startBtn.innerHTML = '<i class="fas fa-microphone"></i> Decode';
-        statusEl.textContent = "stopped";
-        statusEl.style.color = "#aaa";
-        debugDiv.textContent = "";
+    function stopClassic() {
+      if (!running) return;
+      if (detector) detector.stop();
+      if (multiDecoder) {
+        if (multiDecoder.silenceCheckInterval) clearInterval(multiDecoder.silenceCheckInterval);
+        multiDecoder.forceComplete();
       }
-    });
+      if (displayInterval) clearInterval(displayInterval);
+      detector = null;
+      multiDecoder = null;
+      displayInterval = null;
+      running = false;
+      controlsWrapper.hidden = true;
+      overlay.classList.remove("expanded");
+      debugDiv.textContent = "";
+    }
+
+    // "Running 10 decoders / Show all" only applies to this engine
+    controlsWrapper.hidden = true;
+
+    window.CWClassicDecoder = {
+      start: startClassic,
+      stop: stopClassic,
+      get running() { return running; },
+      isLikelyInAppBrowser,
+      showOpenInBrowserHelp
+    };
   });
 })();
