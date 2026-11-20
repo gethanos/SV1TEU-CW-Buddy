@@ -44,12 +44,13 @@ Copyright (c) 2026 e04, MIT License: see NOTICE.
   }
 
   class Waterfall {
-    constructor(canvas, { minHz = 300, maxHz = 1500, onTune = null } = {}) {
+    constructor(canvas, { minHz = 300, maxHz = 1500, onTune = null, onLevel = null } = {}) {
       this.canvas = canvas;
       this.ctx = canvas.getContext("2d");
       this.minHz = minHz;
       this.maxHz = maxHz;
       this.onTune = onTune;
+      this.onLevel = onLevel;
       this.lut = buildLut();
       this.markers = { target: null, manual: null };
       this.floorDb = null;
@@ -89,7 +90,7 @@ Copyright (c) 2026 e04, MIT License: see NOTICE.
       this.canvas.width = w;
       this.canvas.height = h;
       this.column = this.ctx.createImageData(1, h);
-      this.ctx.fillStyle = "#0a0f1e";
+      this.ctx.fillStyle = "#070B10";
       this.ctx.fillRect(0, 0, w, h);
     }
 
@@ -101,6 +102,7 @@ Copyright (c) 2026 e04, MIT License: see NOTICE.
       this.analyser.maxDecibels = 0;
       sourceNode.connect(this.analyser);
       this.data = new Float32Array(this.analyser.frequencyBinCount);
+      this.timeData = new Float32Array(this.analyser.fftSize);
       this.binHz = audioContext.sampleRate / FFT_SIZE;
       this.rowToBin = null;
       this.lastTime = performance.now();
@@ -136,6 +138,14 @@ Copyright (c) 2026 e04, MIT License: see NOTICE.
 
     draw(now) {
       if (!this.analyser || document.hidden) { this.lastTime = now; return; }
+      if (this.onLevel) {
+        // Input level for the meter: RMS in dBFS, -60..-6 dB mapped to 0..1
+        this.analyser.getFloatTimeDomainData(this.timeData);
+        let sum = 0;
+        for (let i = 0; i < this.timeData.length; i++) sum += this.timeData[i] * this.timeData[i];
+        const db = 10 * Math.log10(sum / this.timeData.length + 1e-12);
+        this.onLevel(Math.max(0, Math.min(1, (db + 60) / 54)));
+      }
       this.accum += ((now - this.lastTime) / 1000) * PX_PER_SECOND * (this.canvas.width / Math.max(1, this.canvas.clientWidth));
       this.lastTime = now;
       // Clamp: after a long gap (tab in background) draw at most one screen

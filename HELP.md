@@ -1,114 +1,134 @@
-# SV1TEU CW Buddy — Help / How to Use
+# SV1TEU CW Buddy: Help
 
-## 1) QSO Configuration
+CW Buddy has two screens, **Decode** and **Practice**, plus **Settings** (the gear button). On a phone, the screens are in the tab bar at the bottom.
 
-### QSO Mode
-Select a QSO style for your contact:
-- **Short (Mid‑QSO overs):** for ongoing contacts, not starting or ending.
-- **Relaxed (Full QSO / Ragchew):** a complete, friendly QSO including info and closing.
-- **Formal (Correct ITU Procedure & Prosigns):** a fully structured QSO using correct ITU prosigns (`<KA>`, `<AR>`, `<BT>`, `<KN>`, `<VA>`) for proper on-air etiquette.
-- **Write your own (Custom):** type any CW exchange lines you want; one per line.
+## 1) Decode
 
-### QSO Template Placeholders
-You can use curly-brace codes in templates:
-- `{MY}` = your callsign
-- `{DX}` = the other station's callsign
-- `{RST}` = signal report (defaults to 5NN if empty)
-- `{NAME}`, `{QTH}`, `{RIG}` = personal info (omitted if left empty)
-- `{INFO}` = used in the Formal template to inject all filled fields (`NAME`, `QTH`, `RIG`) as `<BT>`-separated blocks automatically
+Decode listens to CW through your microphone, shows what it hears, and builds the reply you can send back.
 
-**Procedure hints for Relaxed/Short:** Write `K` (over), `KN` (only you reply), `BK` (break/over), or `SK` (end) anywhere in your lines.
+### Start decoding
+1. Click **Start decoding** and allow the microphone when the browser asks.
+2. Play CW near the microphone: from your rig's speaker, a WebSDR or a recording.
+3. Watch the waterfall and the decoded text. Click **Stop decoding** when you're done.
 
-### Prosign Toolkit
-Below the template textarea you'll find a row of clickable prosign buttons: `⟨KA⟩ ⟨AR⟩ ⟨KN⟩ ⟨BT⟩ ⟨AS⟩ ⟨VA⟩ ⟨SK⟩ ⟨VE⟩`
-
-Click any button to insert that prosign at the cursor position in your template. Hover over a button to see a description of what it means. Prosigns are fused characters — they are sent without the normal inter-character gap, as per ITU procedure.
-
-| Prosign | Meaning |
-|---------|---------|
-| `<KA>` | Starting signal — begin transmission (EU formal) |
-| `<AR>` | End of message / passing over |
-| `<KN>` | Go ahead — specific station only |
-| `<BT>` | Break / separator between sections |
-| `<AS>` | Wait / stand by |
-| `<VA>` | End of QSO / sign off (correct ITU prosign) |
-| `<SK>` | End of QSO — common alias for VA |
-| `<VE>` | Understood |
-
-## 2) Station Information
-Fill in your station details and the "DX" station for the template to expand with real info.
-
-Check **"Include final HW CPY? line"** to have this appended before the closing line:
-`HW CPY? {DX} DE {MY} KN`
-
-> In **Formal** mode, the HW CPY line is already built into the template inline — the checkbox is ignored.
-
-## 3) Expanded Text Panel
-Shows the result of your template with all placeholders filled in. Prosigns are highlighted as `⟨AR⟩` and callsigns are visually distinguished.
-
-- **Copy:** copies the complete QSO text to clipboard
-- **Playback type:**
-  - *Phonetic:* reads the text aloud, spelling out both callsigns letter by letter using the NATO phonetic alphabet (e.g. `SV1TEU` → *Sierra Victor One Tango Echo Uniform*). All other words are read naturally.
-  - *Normal:* reads the raw text as-is via browser speech synthesis.
-- **Speed:** adjust the speech rate (0.5× – 2.0×)
-
-## 4) Morse Code Panel
-Shows your QSO rendered as Morse code (dots and dashes). Words are separated by `/` and lines by a line break. Prosigns appear as their fused Morse sequence without brackets.
-
-- **Copy:** copies the Morse code to clipboard
-- **Playback type:**
-  - *CW Tone:* plays the Morse as an audio tone at your chosen WPM and frequency
-  - *Phonetic:* switches to the same phonetic speech playback as the Expanded Text panel
-- **Speed (WPM):** 5 – 40 WPM
-- **Tone Frequency:** 300 – 1200 Hz
-
-**Tip:** If playback won't start, click or tap anywhere on the page first — browsers require a user gesture before allowing audio.
-
-## 5) CW Decoder (Microphone) — How to Use
-
-### Quick Start
-1. Click **Decode** above the Expanded Text panel.
-2. Allow the microphone prompt if it appears.
-3. Place a CW signal (from a speaker, rig, or a YouTube video) near the mic.
-4. Watch the waterfall and the decoded text appear live.
-
-**To stop:** click **Stop**.
-
-### Decoder engines
-Choose the engine with the selector next to **Decode**:
-
-- **Auto** (default): uses the **AI** engine, except in **Formal** QSO mode, where it uses **Classic** so prosigns can be checked. Falls back to Classic automatically if the AI engine cannot load or cannot keep up on your device.
-- **AI (DeepCW):** a neural network decoder ([DeepCW](https://github.com/e04/deepcw-engine) by e04). Much more robust to noise, fading and weak signals. On first use it downloads about 4 MB (model and runtime), then it is cached. Text appears about 2–3 seconds behind the audio, because it decodes in overlapping windows; the latest, not yet confirmed characters are shown dimmed.
-- **Classic:** the multi-speed timing decoder (5–33 WPM, 10 decoders in parallel). Instant, word-by-word output, decodes prosigns as `<AR>`, `<KN>`, `<SK>`, `<KA>`, `<AS>`, `<VE>` and `=` (BT). Needs a clean signal.
+The bar at the top shows what the decoder is doing:
+- **Listening · AI** or **Listening · Classic**: which engine is running.
+- **700 Hz**: the frequency of the signal being decoded.
+- **SNR 18 dB**: how far the signal is above the noise (AI engine only).
+- **Locked · auto**, **Holding** or **Manual**: tuning state. *Holding* means the signal faded and the decoder keeps listening on the last frequency.
+- **Input**: microphone level. If it stays near zero, check the microphone and volume.
 
 ### Waterfall and tuning
-The waterfall shows the audio spectrum from 300 to 1500 Hz, newest on the right. Signals appear as bright horizontal traces.
+The waterfall shows the audio spectrum from 300 to 1500 Hz, newest on the right. A CW signal is a bright horizontal trace.
 
-- **Automatic tuning (AI engine):** the decoder finds the strongest CW signal and follows it (cyan line).
-- **Pick a signal:** click on its trace to lock the AI decoder to that frequency (yellow line). Useful when several signals are present.
+- **Automatic tuning:** the AI engine finds the strongest CW signal and follows it (cyan line).
+- **Pick a signal:** click its trace to tune the AI engine to it (amber line). Useful when several signals are on screen.
 - **Back to automatic:** double-click the waterfall.
 
-The status line shows the frequency, its signal-to-noise ratio and the tuning state: *locked*, *hold* (signal faded, keeping the last frequency) or *manual*.
+### Decoded text
+- **Dimmed** characters are not confirmed yet; they firm up within about 2 seconds.
+- **Underlined** words are the ones used to build your reply: their callsign (cyan), your report (amber), their name and QTH (grey).
+- **Copy** and **Clear** are next to the heading. Clear also resets Your reply.
 
-### Known limits
-- **AI engine and prosigns:** the model has no prosign symbols. `<BT>`, `<AR>`, `<KN>` and `<SK>`/`<VA>` usually appear as the letter pairs `BT`, `AR`, `KN`, `SK`; `<KA>`, `<AS>` and `<VE>` are often wrong. Use the Classic engine (or Formal mode in Auto) to check prosigns.
-- **AI engine below ~10 WPM:** letters are correct, but word spacing can be wrong (e.g. `C Q DE`).
-- **Classic engine:** needs a strong, clean signal; it struggles with noise and fading.
-- **Classic engine, Show all:** check **Show all** to see every speed decoder's output and confidence score.
+### Your reply
+Your reply is built from what was decoded, as text with the Morse under each line, ready to send.
 
-### For Best Results
-- Use a clear, steady tone, not too loud and not distorted.
-- Reduce background noise as much as possible.
-- Try headphones or a direct audio feed if room echo or feedback is a problem.
-- If you see an "Open in browser" warning, open the page in Chrome, Firefox, or Safari. Social app in-app browsers do not allow full microphone access.
+**What it reads from the decoded text**
+- **Their callsign**, from `… DE SV1TJN`. If they call `CQ`, the reply answers the CQ.
+- **Whether they are calling you** (`SV1TEU DE SV1TJN`) or working someone else.
+- **Your report**, after `RST` or `UR` (cut numbers like `5NN` are understood), only when they are calling you.
+- **Their name** after `NAME` or `OP`, and **their QTH** after `QTH`.
+- **The end of the contact** (`73`, `TU`, `SK`, `TNX FER QSO`): the reply then says goodbye.
+- **Other callsigns** heard appear as chips; **Reply to this** switches the reply to that station.
 
-### Troubleshooting
-- **No mic permission?** Check browser settings and ensure the page is served over HTTPS.
-- **No signal or only dots/garbage?** Disable any "Enhancements" or noise reduction on your microphone input, especially on Windows via _Settings → System → Sound → Input → Audio enhancements_.
-- **Works on phone/tablet but not Windows?** Speech enhancement settings are likely suppressing the tones. Disable them in Windows Sound settings.
-- **Decoder stuck, out of sync, or you switched to a very different signal?** Click **Stop**, then **Decode**. For persistent issues, reload the page.
-- **AI engine says "unavailable" or falls back to Classic?** The model or runtime could not load, or your device is too slow. Classic still works; try another browser or device for AI.
-- **Decoder won't start in Facebook/Instagram?** Tap "⋮" or "Share" and open in a real browser.
+**Fields you can change**
+- **Their callsign** fills in automatically; type over it to reply to someone else.
+- **RST you send** is marked:
+  - **Estimated**: worked out from the received signal's SNR (AI engine). It is an estimate from the audio, not your rig's S-meter: the audio level depends on your receiver, its volume and the microphone, so treat it as a suggestion.
+  - **Default**: no estimate available (for example with the Classic engine), so the usual `5NN`.
+  - **Edited**: your own report. It stays until a new station is decoded.
+- **Your details** (name, QTH, rig) come from the Practice screen; set them once there.
 
----
-*If you have decoder or audio setup trouble, review the tips in this file.*
+**Reply style:** *Short* (one line), *Relaxed* (full over with your details) or *Formal* (ITU procedure with prosigns).
+
+**Sending:** **Play reply as CW** plays it at your speed and tone, highlighting the word being sent. **Voice** reads it aloud. **Copy text** and **Copy Morse** copy it.
+
+### Decoder engines
+Choose in the bar (desktop) or in Settings:
+
+| Engine | Best for | Notes |
+|---|---|---|
+| **Auto** (recommended) | Everyday use | AI by default; Classic in Formal mode and when the device is too slow for AI |
+| **AI (DeepCW)** | Weak, noisy or fading signals | Text lags about 2 s; downloads about 4 MB on first use |
+| **Classic** | Prosigns, slow practice | Instant word-by-word; needs a clean, strong signal |
+
+**AI engine and prosigns:** the AI model has no prosign symbols. `<BT>`, `<AR>`, `<KN>` and `<SK>`/`<VA>` usually come out as the letters `BT`, `AR`, `KN`, `SK`; `<KA>`, `<AS>` and `<VE>` are often wrong. Use Classic (or Formal mode with Auto) to check prosigns.
+
+**AI engine at slow speed:** below about 10 WPM the model can split words (`C Q DE`). A word splitter repairs callsigns, reports and common QSO words. Random practice groups are never re-spaced; for slow Koch practice, Classic is the better choice.
+
+**Classic engine, Show all:** in Settings, *Show all speed decoders* shows each of the 10 speed decoders and its score.
+
+## 2) Practice
+
+Practice builds an over from a template and your station details, and plays it as CW or voice.
+
+### QSO mode
+- **Short:** overs for the middle of a contact.
+- **Relaxed:** a complete, friendly QSO with name, QTH, rig and closing.
+- **Formal:** ITU procedure with prosigns (`<KA>`, `<AR>`, `<BT>`, `<KN>`, `<VA>`).
+- **Custom:** your own template, one line per over.
+
+### Station details
+Your callsign, their callsign, the RST you send, and optionally your name, QTH and rig. Your details are remembered in this browser and also used by Your reply. Tick **End with "HW CPY?"** to add `HW CPY? {DX} DE {MY} KN` before the closing line (Formal mode already includes it).
+
+### Template and prosigns
+Templates use these placeholders:
+- `{MY}`: your callsign. `{DX}`: their callsign.
+- `{RST}`: the report (`5NN` if empty).
+- `{NAME}`, `{QTH}`, `{RIG}`: your details (lines are dropped when the field is empty).
+- `{INFO}`: Formal mode only; inserts the filled details as `<BT>`-separated blocks.
+
+In Relaxed and Short you can write `K` (over), `KN` (only you reply), `BK` (back to you) or `SK` (end) anywhere.
+
+The prosign buttons insert a prosign at the cursor. Prosigns are sent as one character, without the gap between letters:
+
+| Prosign | Meaning |
+|---|---|
+| `<KA>` | Starting signal: beginning of a transmission (formal) |
+| `<AR>` | End of message |
+| `<KN>` | Go ahead, named station only |
+| `<BT>` | Separator between parts of a message |
+| `<AS>` | Wait, stand by |
+| `<VA>` | End of work, no reply expected (ITU) |
+| `<SK>` | End of contact (amateur use; same signal as VA) |
+| `<VE>` | Understood (rare on the air today) |
+
+### Your over and the player
+Your over shows each line as text with its Morse underneath (untick **Show Morse** to hide it). The player plays it as **CW tone** at your **Speed** (5 to 40 WPM) and **Tone** (300 to 1200 Hz), highlighting each word as it is sent, or as **Voice**.
+
+## 3) Settings
+- **Decoder engine:** Auto, AI or Classic (see above).
+- **Microphone:** choose the input, such as a USB sound card from your rig. Names appear after you have allowed the microphone once.
+- **Show all speed decoders:** Classic engine diagnostics.
+- **Voice playback:** spell callsigns phonetically (`SV1TEU` → *Sierra Victor One Tango Echo Uniform*) and the speaking speed.
+
+## 4) Offline use (Raspberry Pi in the field)
+Everything the app needs is in the repository, so it runs without an internet connection:
+
+```bash
+python3 scripts/serve.py            # browser on the same machine: http://localhost:8000
+python3 scripts/serve.py --https    # phones on the Pi's Wi-Fi:     https://<pi-ip>:8443
+```
+
+Browsers only allow the microphone on `https://` or `localhost`, so other devices need `--https`; accept the certificate warning once per device. Voice playback needs a speech voice installed on the device.
+
+## 5) Tips and troubleshooting
+- **Best results:** a clear, steady tone, not too loud and not distorted; as little background noise as possible. A direct audio cable from the rig beats a microphone in a noisy room.
+- **No microphone prompt, or "Microphone blocked"?** Allow the microphone in the browser's site settings, and make sure the page is on `https://` or `localhost`.
+- **Only dots, nothing, or garbage?** Turn off microphone "enhancements" and noise suppression, especially on Windows: *Settings → System → Sound → Input → Audio enhancements*.
+- **AI says unavailable, or Auto switched to Classic?** The model could not load, or the device is too slow. Classic keeps working; try another browser or device for AI.
+- **Wrong signal decoded?** Click the right trace on the waterfall, or double-click to go back to automatic tuning.
+- **Decoder confused after a big change?** Click Stop decoding, then Start decoding. Reload the page if it persists.
+- **Facebook or Instagram in-app browser?** Open the page in a real browser: Android ⋮ → Open in browser; iPhone Share → Open in Safari.
+
+*Questions or decoder feedback: open an issue on [GitHub](https://github.com/gethanos/SV1TEU-CW-Buddy/issues).*
