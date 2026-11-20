@@ -359,6 +359,15 @@ See the LICENSE file in the repository root for full license text.
         classic.showOpenInBrowserHelp();
         return;
       }
+      // Browsers only expose the microphone on https:// or localhost.
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        if (!window.isSecureContext) {
+          setStatus(`Microphone needs a secure page: open https://… or http://localhost (this page is ${location.origin})`, "error");
+        } else {
+          setStatus("This browser does not support microphone access", "error");
+        }
+        return;
+      }
       setStatus("Requesting microphone…", "busy");
       aiSlow = false;
       if (manualHz != null) handleTune(null);   // every session starts with automatic tuning
