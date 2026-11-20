@@ -18,6 +18,8 @@ t('working someone else: their report is not mine', 'DL1XYZ DE SV1TJN UR RST 599
 t('my own decoded over is ignored', 'CQ DE SV1TJN K SV1TJN DE SV1TEU SV1TEU K', h => h.dx === 'SV1TJN' && h.calling === 'cq');
 t('nothing to reply to yet', 'CQ CQ TEST', h => h === null);
 t('other calls are listed', 'CQ DE DL1XYZ K CQ CQ DE SV1TJN K', h => h.dx === 'SV1TJN' && h.others.includes('DL1XYZ'));
+t('call without DE, sent twice', 'CQ CQ SV1TJN SV1TJN K', h => h.dx === 'SV1TJN' && h.calling === 'cq');
+t('call without DE, once only: ignored', 'CQ CQ SV1TJN K', h => h === null);
 t('only their latest over counts', 'SV1TEU DE SV1TJN UR 559 KN SV1TJN DE SV1TEU R UR 579 KN SV1TEU DE SV1TJN R TNX NAME GEORGE KN',
   h => h.report === null && h.name === 'GEORGE');
 const rst = [[30, '599'], [20, '579'], [14, '559'], [9, '439'], [null, null]];

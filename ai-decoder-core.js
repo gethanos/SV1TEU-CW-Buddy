@@ -56,8 +56,10 @@ https://github.com/e04/deepcw-engine: see NOTICE.
   const TONE_ANALYSIS_SECONDS = 4;
   const TONE_HOP = 128;
   const TONE_ON_QUANTILE = 0.9;
-  const TONE_LOCK_SNR_DB = 12;
-  const TONE_RELEASE_SNR_DB = 9;
+  // Pure noise measures about 7 dB (max 7.4 dB over 30 recordings); a
+  // -14 dB CW signal measures about 12 dB.
+  const TONE_LOCK_SNR_DB = 10;
+  const TONE_RELEASE_SNR_DB = 8.5;
   const TONE_CONFIRM_STEPS = 2;
   const SIDEBAND_MASK_HZ = 150;
   const SIDEBAND_MASK_DB = 18;
