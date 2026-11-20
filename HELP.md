@@ -125,7 +125,8 @@ Browsers only allow the microphone on `https://` or `localhost`, so other device
 
 ## 5) Tips and troubleshooting
 - **Best results:** a clear, steady tone, not too loud and not distorted; as little background noise as possible. A direct audio cable from the rig beats a microphone in a noisy room.
-- **No microphone prompt, or "Microphone blocked"?** Allow the microphone in the browser's site settings, and make sure the page is on `https://` or `localhost`.
+- **"Microphone needs a secure page"?** Browsers only allow the microphone on `https://` or `http://localhost`. Over plain `http://` with an IP address or hostname (or a `file://` page) it is switched off. Use `localhost` on the same machine, or `python3 scripts/serve.py --https` for other devices.
+- **No microphone prompt, or "Microphone blocked"?** Allow the microphone in the browser's site settings.
 - **Only dots, nothing, or garbage?** Turn off microphone "enhancements" and noise suppression, especially on Windows: *Settings → System → Sound → Input → Audio enhancements*.
 - **Auto switched to Classic?** The AI model could not load, or the device fell behind. If it fell behind, AI is tried again the next time you start decoding. Classic keeps working meanwhile.
 - **Wrong signal decoded?** Click the right trace on the waterfall, or press **Auto tune** to go back to automatic tuning.
