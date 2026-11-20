@@ -48,7 +48,7 @@ Your reply is built from what was decoded, as text with the Morse under each lin
   - **Estimated**: worked out from the received signal's SNR (AI engine). It is an estimate from the audio, not your rig's S-meter: the audio level depends on your receiver, its volume and the microphone, so treat it as a suggestion.
   - **Default**: no estimate available (for example with the Classic engine), so the usual `5NN`.
   - **Edited**: your own report. It stays until a new station is decoded.
-- **Your details** (name, QTH, rig) come from the Practice screen; set them once there.
+- **Your station** shows your callsign, name and QTH. Press **Edit** to open a small dialog with your callsign, name, QTH, rig and the "HW CPY?" option, then press **Save**. You stay on the Decode screen. **Cancel** (or Esc) closes the dialog without changing anything. The same details are used in Practice and remembered in this browser.
 
 **Reply style:** *Short* (one line), *Relaxed* (full over with your details) or *Formal* (ITU procedure with prosigns).
 
@@ -80,7 +80,7 @@ Practice builds an over from a template and your station details, and plays it a
 - **Custom:** your own template, one line per over.
 
 ### Station details
-Your callsign, their callsign, the RST you send, and optionally your name, QTH and rig. Your details are remembered in this browser and also used by Your reply. Tick **End with "HW CPY?"** to add `HW CPY? {DX} DE {MY} KN` before the closing line (Formal mode already includes it).
+Your callsign, their callsign, the RST you send, and optionally your name, QTH and rig. Both callsign fields start empty, so enter yours before first use (or use **Edit** on Your reply). Your details are remembered in this browser and also used by Your reply. Tick **End with "HW CPY?"** to add `HW CPY? {DX} DE {MY} KN` before the closing line (Formal mode already includes it).
 
 ### Template and prosigns
 Templates use these placeholders:
@@ -131,6 +131,7 @@ Browsers only allow the microphone on `https://` or `localhost`, so other device
 - **Auto switched to Classic?** The AI model could not load, or the device fell behind. If it fell behind, AI is tried again the next time you start decoding. Classic keeps working meanwhile.
 - **Wrong signal decoded?** Click the right trace on the waterfall, or press **Auto tune** to go back to automatic tuning.
 - **Callsign not filled in?** It fills in once a callsign is decoded after `DE` (or sent twice), and stays until a new station is decoded or you press Clear. You can always type it.
+- **Reply says to set your callsign?** Press **Edit** under *Your station* on Your reply, enter your callsign, and press **Save**.
 - **Decoder confused after a big change?** Click Stop decoding, then Start decoding. Reload the page if it persists.
 - **Facebook or Instagram in-app browser?** Open the page in a real browser: Android ⋮ → Open in browser; iPhone Share → Open in Safari.
 
