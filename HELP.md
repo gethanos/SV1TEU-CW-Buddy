@@ -70,30 +70,44 @@ Shows your QSO rendered as Morse code (dots and dashes). Words are separated by 
 1. Click **Decode** above the Expanded Text panel.
 2. Allow the microphone prompt if it appears.
 3. Place a CW signal (from a speaker, rig, or a YouTube video) near the mic.
-4. Watch the decoded words appear live in the overlay panel.
+4. Watch the waterfall and the decoded text appear live.
 
 **To stop:** click **Stop**.
 
-### Understanding the Decoder Overlay
-- **Live Decoding:** the system listens for CW, auto-detects speed, and decodes the strongest transmission live.
-- **Multiple speeds:** the decoder analyzes all common QRQ and QRS speeds (5–33 WPM) simultaneously for best accuracy.
-- **Best result only:** by default you see the most confident decoder result.
-- **Show all decoders:** check **Show all** to see every decoder's output and confidence score — handy for tricky signals or learning.
-- **Signal Status:** visual indicator shows whether a CW tone is present and its detected frequency.
-- **Reset:** use **STOP** and **DECODE** if the decoder gets stuck, falls out of sync, or you switch to a very different signal.
+### Decoder engines
+Choose the engine with the selector next to **Decode**:
+
+- **Auto** (default): uses the **AI** engine, except in **Formal** QSO mode, where it uses **Classic** so prosigns can be checked. Falls back to Classic automatically if the AI engine cannot load or cannot keep up on your device.
+- **AI (DeepCW):** a neural network decoder ([DeepCW](https://github.com/e04/deepcw-engine) by e04). Much more robust to noise, fading and weak signals. On first use it downloads about 4 MB (model and runtime), then it is cached. Text appears about 2–3 seconds behind the audio, because it decodes in overlapping windows; the latest, not yet confirmed characters are shown dimmed.
+- **Classic:** the multi-speed timing decoder (5–33 WPM, 10 decoders in parallel). Instant, word-by-word output, decodes prosigns as `<AR>`, `<KN>`, `<SK>`, `<KA>`, `<AS>`, `<VE>` and `=` (BT). Needs a clean signal.
+
+### Waterfall and tuning
+The waterfall shows the audio spectrum from 300 to 1500 Hz, newest on the right. Signals appear as bright horizontal traces.
+
+- **Automatic tuning (AI engine):** the decoder finds the strongest CW signal and follows it (cyan line).
+- **Pick a signal:** click on its trace to lock the AI decoder to that frequency (yellow line). Useful when several signals are present.
+- **Back to automatic:** double-click the waterfall.
+
+The status line shows the frequency, its signal-to-noise ratio and the tuning state: *locked*, *hold* (signal faded, keeping the last frequency) or *manual*.
+
+### Known limits
+- **AI engine and prosigns:** the model has no prosign symbols. `<BT>`, `<AR>`, `<KN>` and `<SK>`/`<VA>` usually appear as the letter pairs `BT`, `AR`, `KN`, `SK`; `<KA>`, `<AS>` and `<VE>` are often wrong. Use the Classic engine (or Formal mode in Auto) to check prosigns.
+- **AI engine below ~10 WPM:** letters are correct, but word spacing can be wrong (e.g. `C Q DE`).
+- **Classic engine:** needs a strong, clean signal; it struggles with noise and fading.
+- **Classic engine, Show all:** check **Show all** to see every speed decoder's output and confidence score.
 
 ### For Best Results
-- Use a clear, steady tone — not too loud, not distorted.
+- Use a clear, steady tone, not too loud and not distorted.
 - Reduce background noise as much as possible.
 - Try headphones or a direct audio feed if room echo or feedback is a problem.
-- Keep a consistent WPM (the decoder can follow moderate changes).
-- If you see an "Open in browser" warning, open the page in Chrome, Firefox, or Safari — social app in-app browsers do not allow full microphone access.
+- If you see an "Open in browser" warning, open the page in Chrome, Firefox, or Safari. Social app in-app browsers do not allow full microphone access.
 
 ### Troubleshooting
 - **No mic permission?** Check browser settings and ensure the page is served over HTTPS.
-- **No signal or only dots/garbage?** Disable any "Enhancements" or noise reduction on your microphone input — especially on Windows via _Settings → System → Sound → Input → Audio enhancements_.
+- **No signal or only dots/garbage?** Disable any "Enhancements" or noise reduction on your microphone input, especially on Windows via _Settings → System → Sound → Input → Audio enhancements_.
 - **Works on phone/tablet but not Windows?** Speech enhancement settings are likely suppressing the tones. Disable them in Windows Sound settings.
-- **Output stuck or frozen?** Hit **Reset**. For persistent issues, reload the page.
+- **Decoder stuck, out of sync, or you switched to a very different signal?** Click **Stop**, then **Decode**. For persistent issues, reload the page.
+- **AI engine says "unavailable" or falls back to Classic?** The model or runtime could not load, or your device is too slow. Classic still works; try another browser or device for AI.
 - **Decoder won't start in Facebook/Instagram?** Tap "⋮" or "Share" and open in a real browser.
 
 ---

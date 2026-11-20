@@ -9,9 +9,38 @@ See the LICENSE file in the repository root for full license text.
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SV1TEU CW Buddy</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="decoder-ui.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="canonical" href="https://cw-buddy.sv1teu.me/">
+<!-- Primary Meta Tags -->
+<title>SV1TEU CW Buddy | Online Morse (CW) Generator & Decoder for Ham Radio</title>
+<meta name="description"
+      content="SV1TEU CW Buddy is an online web app for amateur radio operators to generate, play and decode Morse (CW) for practice and real QSOs — no installation required.">
+
+<!-- Open Graph / Facebook / LinkedIn / WhatsApp -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://cw-buddy.sv1teu.me/">
+<meta property="og:title" content="SV1TEU - CW Buddy">
+<meta property="og:description"
+      content="A web app for amateur radio operators to generate and decode Morse (CW) for practice and real contacts.">
+<meta property="og:image"
+      content="https://cw-buddy.sv1teu.me/img/sv1teu-cw-buddy-350x233.png">
+<meta property="og:image:width" content="350">
+<meta property="og:image:height" content="233">
+
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://cw-buddy.sv1teu.me/">
+<meta name="twitter:title" content="SV1TEU - CW Buddy">
+<meta name="twitter:description"
+      content="Generate and decode Morse (CW) for practice and real amateur radio QSOs.">
+<meta name="twitter:image"
+      content="https://cw-buddy.sv1teu.me/img/sv1teu-cw-buddy-350x233.png">
+
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
 <body>
     <div class="container">
@@ -95,8 +124,18 @@ See the LICENSE file in the repository root for full license text.
                             <button id="cwStartBtn" class="cw-pill">
                                 <i class="fas fa-microphone"></i> Decode
                             </button>
+                            <select id="cwEngine" class="cw-engine" aria-label="Decoder engine">
+                                <option value="auto">Auto</option>
+                                <option value="ai">AI (DeepCW)</option>
+                                <option value="classic">Classic</option>
+                            </select>
                             <span id="cwStatus" class="cw-status">idle</span>
                         </div>
+                        <div class="cw-waterfall-wrap">
+                            <div id="cwWaterfallScale" class="cw-waterfall-scale" aria-hidden="true"></div>
+                            <canvas id="cwWaterfall" class="cw-waterfall" title="Click a signal to tune, double-click for automatic tuning"></canvas>
+                        </div>
+                        <div id="cwTuneInfo" class="cw-tune-info"></div>
                         <div id="cwDecodedOverlay" class="cw-decoded-overlay" aria-live="polite"></div>
                     </div>
 
@@ -204,6 +243,7 @@ See the LICENSE file in the repository root for full license text.
                     <!-- Footer with branding -->
                     <div class="branding-footer">
                         <p>Created by Georgalas Athanasios Antonios, SV1TEU - <a target="_blank" rel="noopener" href="https://github.com/gethanos/SV1TEU-CW-Buddy/blob/main/HELP.md">Documentation</a></p>
+                        <p class="version">AI decoding: <a target="_blank" rel="noopener" href="https://github.com/e04/deepcw-engine">DeepCW model by e04</a> (MIT)</p>
                         <p class="version">v1.7dev - MIT License <a target="_blank" rel="noopener" href="https://github.com/gethanos/SV1TEU-CW-Buddy">Github page</a>
 		</p>
                     </div>
@@ -214,5 +254,52 @@ See the LICENSE file in the repository root for full license text.
 
     <script src="script.js"></script>
     <script src="cw-decoder.js"></script>
+    <script src="waterfall.js"></script>
+    <script src="decoder-controller.js"></script>
+
+<!-- Hidden SEO section (text + keywords + demo link) -->
+<section
+  aria-hidden="true"
+  style="position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden;">
+  <h2>About SV1TEU CW Buddy</h2>
+  <p>
+    SV1TEU CW Buddy is an <strong>online browser-based Morse Code (CW) training</strong> 
+    and <strong>QSO assistant</strong> for amateur radio operators. 
+    Users can <strong>generate realistic CW QSOs</strong>, supporting prosigns, <strong>play Morse audio at adjustable speeds</strong>, 
+    and <strong>decode CW using a microphone</strong>. 
+    Ideal for <strong>ham radio practice</strong>, CW learning, contests, and ragchews. 
+    Try the <a href="https://cw-buddy.sv1teu.me/">live demo</a> in your browser without installation.
+  </p>
+</section>
+
+<!-- Schema.org structured data (JSON-LD) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "SV1TEU CW Buddy",
+  "url": "https://cw-buddy.sv1teu.me/",
+  "image": "https://cw-buddy.sv1teu.me/img/sv1teu-cw-buddy-350x233.png",
+  "description": "SV1TEU CW Buddy is an online browser-based Morse Code (CW) training and QSO assistant for amateur radio operators. Generate, play, and decode CW directly in your browser.",
+  "applicationCategory": "EducationApplication",
+  "operatingSystem": "Web",
+  "softwareVersion": "v1.7dev",
+  "author": {
+    "@type": "Person",
+    "name": "Georgalas Athanasios Antonios, SV1TEU"
+  },
+  "license": "https://opensource.org/licenses/MIT",
+  "featureList": [
+    "Generate CW QSO text with correct prosigns",
+    "Play CW audio at adjustable speeds",
+    "Decode CW from microphone",
+    "AI (neural network) CW decoding with waterfall and click-to-tune",
+    "Practice CW for ham radio",
+    "Formal ITU procedure templates",
+    "Online browser-based, no installation"
+  ]
+}
+</script>
+
 </body>
 </html>
