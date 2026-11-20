@@ -7,12 +7,11 @@ See the LICENSE file in the repository root for full license text.
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="decoder-ui.css">
-    <link rel="stylesheet" href="vendor/fontawesome/css/all.min.css">
-    <link rel="canonical" href="https://cw-buddy.sv1teu.me/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F141A">
+<link rel="stylesheet" href="app.css">
+<link rel="canonical" href="https://cw-buddy.sv1teu.me/">
 <!-- Primary Meta Tags -->
 <title>SV1TEU CW Buddy | Online Morse (CW) Generator & Decoder for Ham Radio</title>
 <meta name="description"
@@ -43,219 +42,294 @@ See the LICENSE file in the repository root for full license text.
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="header-content">
-                <div class="header-text">
-                    <h1><i class="fas fa-satellite"></i> SV1TEU CW Buddy</h1>
-                    <p class="subtitle">Generate and Decode Morse Code - Georgalas Athanasios Antonios, SV1TEU</p>
-                </div>
-            </div>
-        </header>
-        
-        <main>
-            <div class="main-content">
-                <!-- Left Sidebar - Controls -->
-                <div class="sidebar">
-                    <!-- QSO Configuration -->
-                    <div class="section">
-                        <h2><i class="fas fa-sliders-h"></i> QSO Configuration</h2>
-                        <div class="form-group">
-			<label for="profile"><i class="fas fa-route"></i> QSO Mode</label>
-			<select id="profile">
-			  <option value="short">Short (Mid‑QSO overs)</option>
-			  <option value="relaxed" selected>Relaxed (Full QSO / Ragchew)</option>
-			  <option value="formal">Formal (Correct ITU Procedure &amp; Prosigns)</option>
-			  <option value="custom">Write your own (Custom)</option>
-			</select>
-                        </div>
-                        <div class="form-group">
-                            <label for="qsoText"><i class="fas fa-code"></i> QSO Template</label>
-                            <textarea id="qsoText" placeholder="Write your custom QSO template here..."></textarea>
-                            <!-- Prosign chips — click to insert at cursor -->
-                            <div class="prosign-bar" id="prosign-toolkit-buttons"></div>
-                            <div id="prosign-tooltip" class="prosign-tooltip"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Station Information -->
-                    <div class="section">
-                        <h2><i class="fas fa-user-circle"></i> Station Information</h2>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="myCall"><i class="fas fa-address-card"></i> Your Callsign</label>
-                                <input id="myCall" value="SV1TEU" placeholder="e.g. SV1TEU">
-                            </div>
-                            <div class="form-group">
-                                <label for="dxCall"><i class="fas fa-satellite-dish"></i> Remote Callsign</label>
-                                <input id="dxCall" value="SV1TJN" placeholder="e.g. DL1XYZ">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="myRST"><i class="fas fa-signal"></i> RST Report</label>
-                                <input id="myRST" value="5NN" placeholder="e.g. 5NN">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="myName"><i class="fas fa-user"></i> Your Name (Optional)</label>
-                            <input id="myName" placeholder="e.g. Thanos">
-                        </div>
-                        <div class="form-group">
-                            <label for="myQTH"><i class="fas fa-map-marker-alt"></i> Your QTH (Optional)</label>
-                            <input id="myQTH" placeholder="e.g. Athens">
-                        </div>
-                        <div class="form-group">
-                            <label for="myRIG"><i class="fas fa-wifi"></i> Your Rig / Power / Antenna (Optional)</label>
-                            <input id="myRIG" placeholder="e.g. Xiegu G90 10W EFHW">
-                        </div>
-                        <div class="checkbox-group">
-                            <input type="checkbox" id="hwcpy">
-                            <label for="hwcpy"><i class="fas fa-check-circle"></i> Include final "HW CPY?" line</label>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Right Side - Output -->
-                <div class="output-panel">
-                    <!-- ✅ CW decoder block moved ABOVE the Expanded Text card -->
-                    <div class="cw-decoder-wrapper">
-                        <div class="cw-decode-bar">
-                            <button id="cwStartBtn" class="cw-pill">
-                                <i class="fas fa-microphone"></i> Decode
-                            </button>
-                            <select id="cwEngine" class="cw-engine" aria-label="Decoder engine">
-                                <option value="auto">Auto</option>
-                                <option value="ai">AI (DeepCW)</option>
-                                <option value="classic">Classic</option>
-                            </select>
-                            <span id="cwStatus" class="cw-status">idle</span>
-                        </div>
-                        <div class="cw-waterfall-wrap">
-                            <div id="cwWaterfallScale" class="cw-waterfall-scale" aria-hidden="true"></div>
-                            <canvas id="cwWaterfall" class="cw-waterfall" title="Click a signal to tune, double-click for automatic tuning"></canvas>
-                        </div>
-                        <div id="cwTuneInfo" class="cw-tune-info"></div>
-                        <div id="cwDecodedOverlay" class="cw-decoded-overlay" aria-live="polite"></div>
-                    </div>
+<a class="skip" href="#main">Skip to content</a>
 
-                    <div class="output-cards">
-                        <div class="output-card">
-                            <div class="output-header">
-                                <div class="output-title">
-                                    <i class="fas fa-expand-alt"></i> Expanded Text
-                                    <span class="status-indicator">
-                                        <span class="status-dot" id="text-status-dot"></span>
-                                        <span id="text-status-text">Ready</span>
-                                    </span>
-                                </div>
-                                <button class="btn-icon" onclick="copyToClipboard('expandedText')" title="Copy">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </div>
-                            <div class="output-content" id="expandedText">Generated text will appear here...</div>
-                            
-                            <div class="playback-controls">
-                                <div class="playback-type">
-                                    <span>Playback:</span>
-                                    <div class="type-buttons">
-                                        <button class="type-btn active" id="text-phonetic-btn" onclick="setTextPlaybackType('phonetic')">
-                                            Phonetic
-                                        </button>
-                                        <button class="type-btn" id="text-normal-btn" onclick="setTextPlaybackType('normal')">
-                                            Normal
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="playback-controls-row">
-                                    <button class="playback-btn" onclick="playText()" id="play-text-btn">
-                                        <i class="fas fa-volume-up"></i> Play
-                                    </button>
-                                    <button class="playback-btn stop" onclick="stopTextPlayback()" id="stop-text-btn" disabled>
-                                        <i class="fas fa-stop"></i> Stop
-                                    </button>
-                                    <div class="control-group">
-                                        <div>Speed</div>
-                                        <div class="playback-speed">
-                                            <input type="range" min="0.5" max="2" step="0.1" value="1" id="text-speed">
-                                            <span id="text-speed-value">1.0x</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="output-card">
-                            <div class="output-header">
-                                <div class="output-title">
-                                    <i class="fas fa-code"></i> Morse Code
-                                    <span class="status-indicator">
-                                        <span class="status-dot" id="morse-status-dot"></span>
-                                        <span id="morse-status-text">Ready</span>
-                                    </span>
-                                </div>
-                                <button class="btn-icon" onclick="copyToClipboard('morseOutput')" title="Copy">
-                                    <i class="fas fa-copy"></i>
-                                </button>
-                            </div>
-                            <div class="output-content" id="morseOutput">Generated Morse code will appear here...</div>
-                            
-                            <div class="playback-controls">
-                                <div class="playback-type">
-                                    <span>Playback:</span>
-                                    <div class="type-buttons">
-                                        <button class="type-btn active" id="morse-cw-btn" onclick="setMorsePlaybackType('cw')">
-                                            CW Tone
-                                        </button>
-                                        <button class="type-btn" id="morse-phonetic-btn" onclick="setMorsePlaybackType('phonetic')">
-                                            Phonetic
-                                        </button>
-                                    </div>
-                                </div>
-                                <div class="playback-controls-row">
-                                    <button class="playback-btn" onclick="playCW()" id="play-morse-btn">
-                                        <i class="fas fa-volume-up"></i> Play CW
-                                    </button>
-                                    <button class="playback-btn stop" onclick="stopCWPlayback()" id="stop-morse-btn" disabled>
-                                        <i class="fas fa-stop"></i> Stop
-                                    </button>
-                                    <div class="control-group">
-                                        <div>Speed (WPM)</div>
-                                        <div class="playback-speed">
-                                            <input type="range" min="5" max="40" step="1" value="15" id="cw-speed">
-                                            <span id="cw-speed-value">15 WPM</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="playback-controls-row">
-                                    <div class="control-group">
-                                        <div>Tone Frequency</div>
-                                        <div class="playback-speed">
-                                            <input type="range" min="300" max="1200" step="10" value="700" id="cw-frequency">
-                                            <span id="cw-frequency-value">700 Hz</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Footer with branding -->
-                    <div class="branding-footer">
-                        <p>Created by Georgalas Athanasios Antonios, SV1TEU - <a target="_blank" rel="noopener" href="https://github.com/gethanos/SV1TEU-CW-Buddy/blob/main/HELP.md">Documentation</a></p>
-                        <p class="version">AI decoding: <a target="_blank" rel="noopener" href="https://github.com/e04/deepcw-engine">DeepCW model by e04</a> (MIT) - <a target="_blank" rel="noopener" href="https://github.com/gethanos/SV1TEU-CW-Buddy#credits">Credits</a></p>
-                        <p class="version">v1.7dev - MIT License <a target="_blank" rel="noopener" href="https://github.com/gethanos/SV1TEU-CW-Buddy">Github page</a>
-		</p>
-                    </div>
-                </div>
-            </div>
-        </main>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"/><path d="M19 11a7 7 0 0 1-14 0M12 18v3"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="i-practice" viewBox="0 0 24 24"><path d="M4 12h3M10 12h10M4 7h10M17 7h3M4 17h6M13 17h7"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14M12 17h.01"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></symbol>
+</svg>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 28 28" aria-hidden="true"><path d="M3 14h4M10 14h10M23 14h2"/><circle cx="14" cy="14" r="12"/></svg>
+      <span class="brand-name">CW Buddy</span>
+      <span class="brand-call">SV1TEU</span>
     </div>
 
-    <script src="script.js"></script>
-    <script src="cw-decoder.js"></script>
-    <script src="waterfall.js"></script>
-    <script src="decoder-controller.js"></script>
+    <nav class="nav" aria-label="Main">
+      <a href="#decode" data-view="decode"><svg class="icon" aria-hidden="true"><use href="#i-mic"/></svg><span>Decode</span></a>
+      <a href="#practice" data-view="practice"><svg class="icon" aria-hidden="true"><use href="#i-practice"/></svg><span>Practice</span></a>
+      <a href="https://github.com/gethanos/SV1TEU-CW-Buddy/blob/main/HELP.md" target="_blank" rel="noopener"><svg class="icon" aria-hidden="true"><use href="#i-help"/></svg><span>Help</span></a>
+    </nav>
+
+    <div class="topbar-actions">
+      <!-- live-site: donate -->
+      <button type="button" id="engineChip" class="engine-chip" aria-haspopup="dialog">
+        <span class="dot" aria-hidden="true"></span><span id="engineChipLabel">Auto</span>
+        <svg class="icon icon-sm" aria-hidden="true"><use href="#i-chevron"/></svg>
+      </button>
+      <button type="button" id="settingsBtn" class="icon-btn icon-btn-outline" aria-label="Settings" aria-haspopup="dialog">
+        <svg class="icon" aria-hidden="true"><use href="#i-gear"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="main">
+    <!-- ============================ Decode ============================ -->
+    <section id="view-decode" class="view view-decode" data-view-panel="decode" data-pane="heard" aria-label="Decode">
+      <div class="controlbar">
+        <button type="button" id="cwStartBtn" class="btn-decode" data-state="idle" aria-pressed="false">
+          <svg class="icon i-start" aria-hidden="true"><use href="#i-mic"/></svg>
+          <svg class="icon i-running" aria-hidden="true"><use href="#i-stop"/></svg>
+          <span class="lbl">Start decoding</span>
+        </button>
+        <span id="cwStatus" class="status" data-tone="idle" role="status">Ready to decode</span>
+        <span id="chipFreq" class="chip chip-signal mono" hidden></span>
+        <span id="chipSnr" class="chip" hidden></span>
+        <span id="chipLock" class="chip" hidden></span>
+        <span class="meter" title="Microphone input level">Input <span class="meter-track"><span id="inputLevel" class="meter-fill"></span></span></span>
+        <fieldset class="segmented segmented-sm engine-select">
+          <legend class="sr-only">Decoder engine</legend>
+          <label><input type="radio" name="engine" value="auto" checked><span>Auto</span></label>
+          <label><input type="radio" name="engine" value="ai"><span>AI</span></label>
+          <label><input type="radio" name="engine" value="classic"><span>Classic</span></label>
+        </fieldset>
+      </div>
+
+      <nav class="decode-switch" aria-label="Decode view">
+        <button type="button" data-pane="heard" aria-current="true">Heard</button>
+        <button type="button" data-pane="reply">Your reply <span id="replyReady" class="badge badge-ready" hidden>Ready</span></button>
+      </nav>
+
+      <div class="decode-grid">
+        <section class="pane pane-heard" aria-label="What you hear">
+          <div class="card card-waterfall">
+            <div class="card-head">
+              <h2>Waterfall</h2>
+              <span class="legend"><span class="swatch swatch-auto"></span>Auto</span>
+              <span class="legend"><span class="swatch swatch-manual"></span>Manual</span>
+              <span id="cwTuneInfo" class="hint push"></span>
+            </div>
+            <div class="waterfall-wrap">
+              <div id="cwWaterfallScale" class="waterfall-scale" aria-hidden="true"></div>
+              <canvas id="cwWaterfall" class="waterfall" title="Click a signal to tune, double-click for automatic tuning"></canvas>
+            </div>
+          </div>
+
+          <div class="card card-decoded">
+            <div class="card-head">
+              <h2>Decoded</h2>
+              <span class="hint">Underlined: used in your reply · dimmed: not yet confirmed</span>
+              <button type="button" id="decodedCopy" class="icon-btn push" aria-label="Copy decoded text"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg></button>
+              <button type="button" id="decodedClear" class="icon-btn" aria-label="Clear decoded text"><svg class="icon" aria-hidden="true"><use href="#i-trash"/></svg></button>
+            </div>
+            <div id="cwDecodedOverlay" class="decoded" aria-live="polite"></div>
+            <p class="fineprint">Decoded on this device; audio never leaves it · AI: DeepCW by e04 (MIT)</p>
+          </div>
+        </section>
+
+        <section class="pane pane-reply card card-reply" aria-labelledby="replyTitle">
+          <div class="card-head">
+            <h2 id="replyTitle">Your reply</h2>
+            <span class="hint">Built from what you heard</span>
+            <fieldset class="segmented segmented-sm push">
+              <legend class="sr-only">Reply style</legend>
+              <label><input type="radio" name="replyStyle" value="short"><span>Short</span></label>
+              <label><input type="radio" name="replyStyle" value="relaxed" checked><span>Relaxed</span></label>
+              <label><input type="radio" name="replyStyle" value="formal"><span>Formal</span></label>
+            </fieldset>
+          </div>
+
+          <div id="heardChips" class="chips" aria-label="Heard"></div>
+
+          <div class="reply-fields">
+            <div class="field">
+              <label for="replyCall">Their callsign</label>
+              <input id="replyCall" class="mono input-strong" autocomplete="off" spellcheck="false" autocapitalize="characters" aria-describedby="replyCallHint">
+              <small id="replyCallHint" class="hint"></small>
+            </div>
+            <div class="field">
+              <label for="replyRst">RST you send <span id="rstBadge" class="badge" data-kind="default">Default</span></label>
+              <input id="replyRst" class="mono input-strong input-rst" autocomplete="off" spellcheck="false" autocapitalize="characters" aria-describedby="rstHint">
+            </div>
+            <div class="field">
+              <span class="field-label">Your details</span>
+              <button type="button" id="replyEditDetails" class="btn btn-field"><span id="replyDetails">Add name and QTH</span><span class="hint push">Edit</span></button>
+            </div>
+          </div>
+          <p id="rstHint" class="hint rst-hint"></p>
+
+          <p id="replyEmpty" class="empty"></p>
+          <ol id="replyLines" class="over over-scroll" hidden></ol>
+
+          <div class="actions">
+            <button type="button" id="replyPlay" class="btn btn-primary" data-label-play="Play reply as CW" data-label-stop="Stop">
+              <svg class="icon i-idle" aria-hidden="true"><use href="#i-play"/></svg>
+              <svg class="icon i-playing" aria-hidden="true"><use href="#i-stop"/></svg>
+              <span class="lbl">Play reply as CW</span>
+            </button>
+            <button type="button" id="replyVoice" class="btn" data-label-play="Voice" data-label-stop="Stop voice"><span class="lbl">Voice</span></button>
+            <label class="sr-only" for="replyWpm">Speed</label>
+            <select id="replyWpm" class="btn btn-select mono"></select>
+            <button type="button" id="replyCopy" class="btn push"><svg class="icon i-done" aria-hidden="true"><use href="#i-check"/></svg>Copy text</button>
+            <button type="button" id="replyCopyMorse" class="btn"><svg class="icon i-done" aria-hidden="true"><use href="#i-check"/></svg>Copy Morse</button>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- ============================ Practice ============================ -->
+    <section id="view-practice" class="view view-practice" data-view-panel="practice" aria-label="Practice" hidden>
+      <section class="card card-setup" aria-labelledby="setupTitle">
+        <h2 id="setupTitle">QSO setup</h2>
+
+        <span class="field-label" aria-hidden="true">QSO mode</span>
+        <fieldset class="segmented segmented-4">
+          <legend class="sr-only">QSO mode</legend>
+          <label><input type="radio" name="profile" value="short"><span>Short</span></label>
+          <label><input type="radio" name="profile" value="relaxed" checked><span>Relaxed</span></label>
+          <label><input type="radio" name="profile" value="formal"><span>Formal</span></label>
+          <label><input type="radio" name="profile" value="custom"><span>Custom</span></label>
+        </fieldset>
+        <p id="modeHint" class="hint"></p>
+
+        <div class="grid-2">
+          <div class="field"><label for="myCall">Your callsign</label><input id="myCall" class="mono" value="SV1TEU" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
+          <div class="field"><label for="dxCall">Their callsign</label><input id="dxCall" class="mono" value="SV1TJN" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
+          <div class="field"><label for="myRST">RST sent</label><input id="myRST" class="mono" value="5NN" autocomplete="off" spellcheck="false" autocapitalize="characters"></div>
+          <div class="field"><label for="myName">Name</label><input id="myName" placeholder="e.g. Thanos" autocomplete="off"></div>
+        </div>
+
+        <details class="disclosure" open>
+          <summary>More details</summary>
+          <div class="disclosure-body">
+            <div class="field"><label for="myQTH">QTH</label><input id="myQTH" placeholder="e.g. Athens" autocomplete="off"></div>
+            <div class="field"><label for="myRIG">Rig, power, antenna</label><input id="myRIG" placeholder="e.g. Xiegu G90 10W EFHW" autocomplete="off"></div>
+            <label class="check"><input type="checkbox" id="hwcpy"> End with “HW CPY?”</label>
+          </div>
+        </details>
+
+        <details class="disclosure">
+          <summary>Template and prosigns</summary>
+          <div class="disclosure-body">
+            <label for="qsoText" class="sr-only">QSO template</label>
+            <textarea id="qsoText" class="mono" rows="7" spellcheck="false"></textarea>
+            <div id="prosignBar" class="chips" aria-label="Insert a prosign"></div>
+            <p class="hint">Prosigns are sent as one character, without letter gaps.</p>
+          </div>
+        </details>
+      </section>
+
+      <section class="card card-over" aria-labelledby="overTitle">
+        <div class="card-head">
+          <h2 id="overTitle">Your over</h2>
+          <label class="check check-sm"><input type="checkbox" id="overShowMorse" checked> Show Morse</label>
+          <button type="button" id="overCopy" class="btn push"><svg class="icon i-done" aria-hidden="true"><use href="#i-check"/></svg>Copy text</button>
+          <button type="button" id="overCopyMorse" class="btn"><svg class="icon i-done" aria-hidden="true"><use href="#i-check"/></svg>Copy Morse</button>
+        </div>
+        <p id="overEmpty" class="empty" hidden>Enter your callsign and theirs to build an over.</p>
+        <ol id="overLines" class="over over-scroll"></ol>
+
+        <div class="player">
+          <div class="progress" aria-hidden="true"><span id="practiceProgress"></span></div>
+          <div class="player-row">
+            <button type="button" id="practicePlay" class="btn-round" data-label-play="Play" data-label-stop="Stop" aria-label="Play">
+              <svg class="icon i-idle" aria-hidden="true"><use href="#i-play"/></svg>
+              <svg class="icon i-playing" aria-hidden="true"><use href="#i-stop"/></svg>
+            </button>
+            <fieldset class="segmented segmented-sm">
+              <legend class="sr-only">Play as</legend>
+              <label><input type="radio" name="practiceMode" value="cw" checked><span>CW tone</span></label>
+              <label><input type="radio" name="practiceMode" value="voice"><span>Voice</span></label>
+            </fieldset>
+            <div class="slider">
+              <label for="cwWpm">Speed <output id="cwWpmValue" class="mono" for="cwWpm">20 WPM</output></label>
+              <input type="range" id="cwWpm" min="5" max="40" step="1" value="20">
+            </div>
+            <div class="slider">
+              <label for="cwTone">Tone <output id="cwToneValue" class="mono" for="cwTone">700 Hz</output></label>
+              <input type="range" id="cwTone" min="300" max="1200" step="10" value="700">
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+</div>
+
+<!-- ============================ Settings ============================ -->
+<dialog id="settingsDialog" class="sheet" aria-labelledby="settingsTitle">
+  <div class="sheet-head">
+    <h2 id="settingsTitle">Settings</h2>
+    <button type="button" id="settingsClose" class="btn btn-primary push">Done</button>
+  </div>
+
+  <fieldset class="options">
+    <legend>Decoder engine</legend>
+    <label class="option">
+      <input type="radio" name="engineSheet" value="auto" checked>
+      <span><strong>Auto</strong> <span class="badge badge-signal">Recommended</span>
+      <small>AI by default. Classic in Formal mode, and when this device is too slow for AI.</small></span>
+    </label>
+    <label class="option">
+      <input type="radio" name="engineSheet" value="ai">
+      <span><strong>AI (DeepCW)</strong>
+      <small>Best in noise and fading. Text lags about 2 s. Downloads about 4 MB on first use.</small></span>
+    </label>
+    <label class="option">
+      <input type="radio" name="engineSheet" value="classic">
+      <span><strong>Classic</strong>
+      <small>Instant, decodes prosigns like &lt;KN&gt; and &lt;SK&gt;. Best for slow practice. Needs a clean, strong signal.</small></span>
+    </label>
+  </fieldset>
+
+  <div class="field">
+    <label for="micSelect">Microphone</label>
+    <select id="micSelect"><option value="">Default microphone</option></select>
+    <small id="micHint" class="hint">Microphone names appear after you allow access once.</small>
+  </div>
+
+  <label class="check">
+    <input type="checkbox" id="showAllDecoders">
+    <span>Show all speed decoders <small class="hint">Classic engine only</small></span>
+  </label>
+
+  <fieldset class="options options-plain">
+    <legend>Voice playback</legend>
+    <label class="check"><input type="checkbox" id="voicePhonetic" checked> Spell callsigns phonetically</label>
+    <div class="slider">
+      <label for="voiceRate">Voice speed <output id="voiceRateValue" class="mono" for="voiceRate">1.0×</output></label>
+      <input type="range" id="voiceRate" min="0.5" max="2" step="0.1" value="1">
+    </div>
+  </fieldset>
+
+  <p class="fineprint">
+    SV1TEU CW Buddy v2.0 · MIT License ·
+    <a href="https://github.com/gethanos/SV1TEU-CW-Buddy" target="_blank" rel="noopener">GitHub</a> ·
+    <a href="https://github.com/gethanos/SV1TEU-CW-Buddy#credits" target="_blank" rel="noopener">Credits</a><br>
+    AI decoding: <a href="https://github.com/e04/deepcw-engine" target="_blank" rel="noopener">DeepCW model by e04</a> (MIT)
+  </p>
+</dialog>
+
+<div id="liveStatus" class="sr-only" aria-live="polite"></div>
+
+<script src="cw-core.js"></script>
+<script src="splitter.js"></script>
+<script src="practice.js"></script>
+<script src="reply.js"></script>
+<script src="app.js"></script>
+<script src="waterfall.js"></script>
+<script src="cw-decoder.js"></script>
+<script src="decoder-controller.js"></script>
 
 <!-- Hidden SEO section (text + keywords + demo link) -->
 <section
@@ -283,20 +357,20 @@ See the LICENSE file in the repository root for full license text.
   "description": "SV1TEU CW Buddy is an online browser-based Morse Code (CW) training and QSO assistant for amateur radio operators. Generate, play, and decode CW directly in your browser.",
   "applicationCategory": "EducationApplication",
   "operatingSystem": "Web",
-  "softwareVersion": "v1.7dev",
+  "softwareVersion": "v2.0",
   "author": {
     "@type": "Person",
     "name": "Georgalas Athanasios Antonios, SV1TEU"
   },
   "license": "https://opensource.org/licenses/MIT",
   "featureList": [
+    "Decode CW from the microphone with an AI (neural network) or classic decoder",
+    "Builds your reply from what you heard: callsign, report, name and QTH",
+    "Waterfall with click-to-tune",
     "Generate CW QSO text with correct prosigns",
     "Play CW audio at adjustable speeds",
-    "Decode CW from microphone",
-    "AI (neural network) CW decoding with waterfall and click-to-tune",
-    "Practice CW for ham radio",
     "Formal ITU procedure templates",
-    "Online browser-based, no installation"
+    "Works offline, no installation"
   ]
 }
 </script>

@@ -23,8 +23,8 @@ See the LICENSE file in the repository root for full license text.
     const isLikelyInAppBrowser = isFacebookInApp || isInstagramInApp || isAndroidWebView;
 
     function showOpenInBrowserHelp() {
-      statusEl.textContent = "Open in browser";
-      statusEl.style.color = "#ffb000";
+      statusEl.textContent = "Open in a browser";
+      statusEl.dataset.tone = "warn";
       overlay.textContent =
         "Decoder may not work in Facebook/Instagram in-app browser.\n" +
         "Open in Chrome/Safari/Firefox.\n\n" +
@@ -926,67 +926,26 @@ See the LICENSE file in the repository root for full license text.
       }
     }
 
-    // UI
+    // UI: decoder-controller.js owns the Decode button, the microphone and
+    // the status line; this engine reports its state through events.
     let detector = null;
     let multiDecoder = null;
     let running = false;
     let displayInterval = null;
+    const showAll = () => {
+      const box = document.getElementById("showAllDecoders");
+      return Boolean(box && box.checked);
+    };
 
-    // Create UI elements with classes only (no inline styles)
-    const controlsWrapper = document.createElement("div");
-    controlsWrapper.className = "cw-controls-wrapper";
-
-    const statusWrapper = document.createElement("div");
-    statusWrapper.className = "cw-status-wrapper";
-
-    const decoderInfo = document.createElement("span");
-    decoderInfo.className = "cw-decoder-info";
-    decoderInfo.textContent = "Running 10 decoders";
-
-    const checkboxContainer = document.createElement("div");
-    checkboxContainer.className = "cw-checkbox-container";
-
-    const showAllCheckbox = document.createElement("input");
-    showAllCheckbox.type = "checkbox";
-    showAllCheckbox.id = "showAllDecoders";
-    showAllCheckbox.checked = false;
-    
-    const checkboxLabel = document.createElement("label");
-    checkboxLabel.htmlFor = "showAllDecoders";
-    checkboxLabel.textContent = "Show all";
-
-    const debugDiv = document.createElement("div");
-    debugDiv.className = "cw-debug-info";
-
-    // Assemble UI
-    checkboxContainer.appendChild(showAllCheckbox);
-    checkboxContainer.appendChild(checkboxLabel);
-    
-    statusWrapper.appendChild(decoderInfo);
-    statusWrapper.appendChild(checkboxContainer);
-    
-    controlsWrapper.appendChild(statusWrapper);
-    
-    // Add classes to existing elements
-    startBtn.classList.add("cw-start-btn");
-    startBtn.insertAdjacentElement("afterend", controlsWrapper);
-    statusEl.insertAdjacentElement("afterend", debugDiv);
-
-    // Add classes to existing elements
-    overlay.classList.add("cw-decoded-overlay");
-    statusEl.classList.add("cw-status-text");
-
-    // Engine API: decoder-controller.js owns the Decode button and the
-    // microphone stream, and starts/stops this engine through it.
     async function startClassic(sharedStream) {
       if (running) return;
       multiDecoder = new MultiDecoder({ onSmartWord: () => {} });
       detector = new WideFilterDetector();
 
       detector.onStateChange = (isOn) => {
-        const freq = detector.centerFrequency.toFixed(0);
-        statusEl.textContent = isOn ? `🔴 ${freq}Hz` : `⚪ ${freq}Hz`;
-        statusEl.style.color = isOn ? '#f44' : '#0f0';
+        document.dispatchEvent(new CustomEvent("cwbuddy:classic-state", {
+          detail: { freq: Math.round(detector.centerFrequency), keyed: isOn }
+        }));
       };
       detector.onTiming = (duration, isSignal) => {
         if (multiDecoder) multiDecoder.addTiming(duration, isSignal);
@@ -1006,20 +965,15 @@ See the LICENSE file in the repository root for full license text.
       }
 
       running = true;
-      controlsWrapper.hidden = false;
-      statusEl.textContent = '⚪ Ready';
-      statusEl.style.color = '#0f0';
-      debugDiv.textContent = "";
-
       displayInterval = setInterval(() => {
         if (!multiDecoder) return;
-        overlay.textContent = multiDecoder.getAllOutputs(showAllCheckbox.checked);
-        overlay.classList.toggle("expanded", showAllCheckbox.checked);
-        if (!showAllCheckbox.checked) {
-          overlay.scrollLeft = overlay.scrollWidth;
-        } else {
-          overlay.scrollTop = overlay.scrollHeight;
-        }
+        const all = showAll();
+        overlay.textContent = multiDecoder.getAllOutputs(all);
+        overlay.classList.toggle("expanded", all);
+        overlay.scrollTop = overlay.scrollHeight;
+        document.dispatchEvent(new CustomEvent("cwbuddy:text", {
+          detail: { text: multiDecoder.getAllOutputs(false), engine: "classic" }
+        }));
       }, 500);
     }
 
@@ -1029,23 +983,32 @@ See the LICENSE file in the repository root for full license text.
       if (multiDecoder) {
         if (multiDecoder.silenceCheckInterval) clearInterval(multiDecoder.silenceCheckInterval);
         multiDecoder.forceComplete();
+        overlay.textContent = multiDecoder.getAllOutputs(false);
       }
       if (displayInterval) clearInterval(displayInterval);
       detector = null;
       multiDecoder = null;
       displayInterval = null;
       running = false;
-      controlsWrapper.hidden = true;
       overlay.classList.remove("expanded");
-      debugDiv.textContent = "";
     }
 
-    // "Running 10 decoders / Show all" only applies to this engine
-    controlsWrapper.hidden = true;
+    function clearClassic() {
+      if (multiDecoder) {
+        multiDecoder.smartOutput = "";
+        for (const d of multiDecoder.decoders) {
+          d.decoder.fullOutput = "";
+          d.decoder.currentWord = "";
+          d.decoder.reset();
+        }
+      }
+      overlay.textContent = "";
+    }
 
     window.CWClassicDecoder = {
       start: startClassic,
       stop: stopClassic,
+      clear: clearClassic,
       get running() { return running; },
       isLikelyInAppBrowser,
       showOpenInBrowserHelp

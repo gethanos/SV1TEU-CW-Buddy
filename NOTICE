@@ -59,7 +59,8 @@ This project includes third-party components:
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE.
 
-3. Font Awesome Free 6.0.0 (vendor/fontawesome/)
-   Copyright (c) Fonticons, Inc. - https://fontawesome.com
-   Icons: CC BY 4.0. Fonts: SIL OFL 1.1. Code: MIT License.
-   Full licence text: vendor/fontawesome/LICENSE.txt
+3. Inter and JetBrains Mono fonts (vendor/fonts/)
+   Inter: Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+   JetBrains Mono: Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+   Both licensed under the SIL Open Font License 1.1.
+   Full licence texts: vendor/fonts/LICENSE-inter.txt, vendor/fonts/LICENSE-jetbrains-mono.txt
