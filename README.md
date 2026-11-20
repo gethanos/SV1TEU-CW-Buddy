@@ -62,5 +62,18 @@ It contains:
 - `vendor/ort/`: ONNX Runtime Web 1.24.3 (fetch with `scripts/fetch-ort.sh`)
 - `NOTICE`: third-party attributions and licences
 
+## Credits
+
+- **DeepCW** by **e04**: the AI decoder uses the DeepCW narrow-band model
+  (`models/deepcw-narrow.onnx`) from [deepcw-engine](https://github.com/e04/deepcw-engine),
+  and `ai-decoder-core.js` adapts its decoding pipeline (spectrogram, normalization,
+  posterior stitching, CTC decoding). The tone finder and the waterfall are based on ideas
+  from [web-deep-cw-decoder](https://github.com/e04/web-deep-cw-decoder).
+  Try the full DeepCW decoder at [deepcw.cc](https://deepcw.cc/). MIT License.
+- **ONNX Runtime Web** by Microsoft runs the model in the browser (`vendor/ort/`). MIT License.
+- **Font Awesome Free** icons, loaded from cdnjs. Icons CC BY 4.0, fonts SIL OFL 1.1, code MIT.
+
+Full licence texts for third-party components are in [`NOTICE`](NOTICE).
+
 ## License
 MIT License: see the `LICENSE` file. Third-party components (DeepCW model, ONNX Runtime Web) are listed in `NOTICE`.
