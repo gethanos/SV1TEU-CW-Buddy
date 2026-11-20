@@ -68,7 +68,7 @@ See the LICENSE file in the repository root for full license text.
     function chooseEngine() {
       if (pref === "classic") return "classic";
       if (pref === "ai") return "ai";
-      if (aiBroken) return "classic";
+      if (aiBroken || aiSlow) return "classic";
       return profile() === "formal" ? "classic" : "ai";
     }
 
@@ -104,8 +104,8 @@ See the LICENSE file in the repository root for full license text.
       if (lock != null) chipLock.textContent = lock;
     }
 
-    function publishText(text, engine) {
-      document.dispatchEvent(new CustomEvent("cwbuddy:text", { detail: { text, engine } }));
+    function publishText(text, engine, reset = false) {
+      document.dispatchEvent(new CustomEvent("cwbuddy:text", { detail: { text, engine, reset } }));
     }
 
     function publishSignal(detail) {
@@ -160,13 +160,17 @@ See the LICENSE file in the repository root for full license text.
       })
       : null;
 
+    const tuneAuto = $("tuneAuto");
+    if (tuneAuto) tuneAuto.addEventListener("click", () => handleTune(null));
+
     function handleTune(hz) {
       manualHz = hz;
+      if (tuneAuto) tuneAuto.hidden = hz == null;
       if (waterfall) waterfall.setMarker("manual", hz);
       if (worker && session && session.engine === "ai") worker.postMessage({ type: "tune", hz });
       if (hz == null) setTuneInfo("Automatic tuning");
       else if (session && session.engine === "classic") setTuneInfo(`Tuning to ${hz} Hz applies to the AI engine`);
-      else setTuneInfo(`Tuned to ${hz} Hz · double-click for automatic`);
+      else setTuneInfo(`Tuned to ${hz} Hz`);
     }
 
     // ---------------------------------------------------------------------
@@ -174,7 +178,10 @@ See the LICENSE file in the repository root for full license text.
     // ---------------------------------------------------------------------
     let worker = null;
     let workerReady = null;   // Promise
-    let aiBroken = false;
+    let aiBroken = false;     // AI could not load: Classic for this page
+    let aiSlow = false;       // AI fell behind: Classic until the next Start
+    let visibleSince = -Infinity;   // set when the tab comes back from the background
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) visibleSince = performance.now(); });
 
     function ensureWorker() {
       if (workerReady) return workerReady;
@@ -225,9 +232,11 @@ See the LICENSE file in the repository root for full license text.
         if (m.committed) publishText(aiText(), "ai");
         if (changed) renderAiText();
       } else if (m.type === "slow") {
+        // A hidden or just-restored tab is throttled by the browser; that's not a slow device.
+        if (document.hidden || performance.now() - visibleSince < 8000) return;
         if (session && session.engine === "ai" && pref === "auto") {
-          aiBroken = true;
-          switchEngine("classic", "AI too slow on this device");
+          aiSlow = true;
+          switchEngine("classic", "AI fell behind on this device; it's tried again next time you start");
         }
       } else if (m.type === "error") {
         console.error("AI decoder:", m.stage, m.message);
@@ -307,7 +316,7 @@ See the LICENSE file in the repository root for full license text.
         try {
           await startAi(s);
           updateEngineChip();
-          setTuneInfo(manualHz == null ? "Click a trace to tune · double-click for automatic" : `Tuned to ${manualHz} Hz · double-click for automatic`);
+          setTuneInfo(manualHz == null ? "Automatic tuning · click a trace to pick a signal" : `Tuned to ${manualHz} Hz`);
           return;
         } catch (err) {
           console.error("AI engine unavailable:", err);
@@ -351,6 +360,8 @@ See the LICENSE file in the repository root for full license text.
         return;
       }
       setStatus("Requesting microphone…", "busy");
+      aiSlow = false;
+      if (manualHz != null) handleTune(null);   // every session starts with automatic tuning
       const micId = app.micId();
       const audio = { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: { ideal: 48000 } };
       if (micId) audio.deviceId = { exact: micId };
@@ -443,7 +454,7 @@ See the LICENSE file in the repository root for full license text.
       pendingText = "";
       classic.clear();
       renderAiText();
-      publishText("", session ? session.engine : "ai");
+      publishText("", session ? session.engine : "ai", true);
     });
 
     // Frequency scale labels next to the waterfall

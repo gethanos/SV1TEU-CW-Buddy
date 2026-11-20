@@ -21,9 +21,10 @@ The bar at the top shows what the decoder is doing:
 ### Waterfall and tuning
 The waterfall shows the audio spectrum from 300 to 1500 Hz, newest on the right. A CW signal is a bright horizontal trace.
 
-- **Automatic tuning:** the AI engine finds the strongest CW signal and follows it (cyan line).
+- **Automatic tuning** is on whenever you start decoding: the AI engine finds the strongest CW signal and follows it (cyan line).
 - **Pick a signal:** click its trace to tune the AI engine to it (amber line). Useful when several signals are on screen.
-- **Back to automatic:** double-click the waterfall.
+- **Back to automatic:** press **Auto tune** above the waterfall (or double-click the waterfall).
+- The **Classic** engine tunes itself and does not use click-to-tune.
 
 ### Decoded text
 - **Dimmed** characters are not confirmed yet; they firm up within about 2 seconds.
@@ -126,8 +127,9 @@ Browsers only allow the microphone on `https://` or `localhost`, so other device
 - **Best results:** a clear, steady tone, not too loud and not distorted; as little background noise as possible. A direct audio cable from the rig beats a microphone in a noisy room.
 - **No microphone prompt, or "Microphone blocked"?** Allow the microphone in the browser's site settings, and make sure the page is on `https://` or `localhost`.
 - **Only dots, nothing, or garbage?** Turn off microphone "enhancements" and noise suppression, especially on Windows: *Settings → System → Sound → Input → Audio enhancements*.
-- **AI says unavailable, or Auto switched to Classic?** The model could not load, or the device is too slow. Classic keeps working; try another browser or device for AI.
-- **Wrong signal decoded?** Click the right trace on the waterfall, or double-click to go back to automatic tuning.
+- **Auto switched to Classic?** The AI model could not load, or the device fell behind. If it fell behind, AI is tried again the next time you start decoding. Classic keeps working meanwhile.
+- **Wrong signal decoded?** Click the right trace on the waterfall, or press **Auto tune** to go back to automatic tuning.
+- **Callsign not filled in?** It fills in once a callsign is decoded after `DE` (or sent twice), and stays until a new station is decoded or you press Clear. You can always type it.
 - **Decoder confused after a big change?** Click Stop decoding, then Start decoding. Reload the page if it persists.
 - **Facebook or Instagram in-app browser?** Open the page in a real browser: Android ⋮ → Open in browser; iPhone Share → Open in Safari.
 

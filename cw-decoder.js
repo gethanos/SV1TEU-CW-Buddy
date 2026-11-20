@@ -965,15 +965,18 @@ See the LICENSE file in the repository root for full license text.
       }
 
       running = true;
+      let lastPublished = null;
       displayInterval = setInterval(() => {
         if (!multiDecoder) return;
         const all = showAll();
         overlay.textContent = multiDecoder.getAllOutputs(all);
         overlay.classList.toggle("expanded", all);
         overlay.scrollTop = overlay.scrollHeight;
-        document.dispatchEvent(new CustomEvent("cwbuddy:text", {
-          detail: { text: multiDecoder.getAllOutputs(false), engine: "classic" }
-        }));
+        const text = multiDecoder.getAllOutputs(false);
+        if (text !== lastPublished) {
+          lastPublished = text;
+          document.dispatchEvent(new CustomEvent("cwbuddy:text", { detail: { text, engine: "classic" } }));
+        }
       }, 500);
     }
 

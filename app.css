@@ -130,6 +130,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .icon-btn:hover { background: var(--surface-2); color: var(--text); }
 .icon-btn-outline { border: 1px solid var(--line-2); background: var(--surface); }
 .btn-field { width: 100%; justify-content: flex-start; }
+.btn-sm { min-height: 32px; padding: 0 10px; font-size: 13px; border-color: var(--amber); color: var(--amber-2); }
 
 input:not([type="radio"]):not([type="checkbox"]):not([type="range"]), select, textarea {
   width: 100%; min-height: 44px; padding: 0 12px; border-radius: var(--radius-sm);

@@ -31,8 +31,23 @@ See the LICENSE file in the repository root for full license text.
       if (toks.slice(Math.max(0, i - 3), i).includes("CQ")) to = "CQ";
       events.push({ sender: toks[i + 1], to, at: i });
     }
-    const theirs = events.filter((e) => e.sender !== my);
-    if (!theirs.length) return null;
+    let theirs = events.filter((e) => e.sender !== my);
+    if (!theirs.length) {
+      // No "DE": accept a callsign sent at least twice in the last few words
+      const recent = toks.slice(-30);
+      const seen = {};
+      let pick = null;
+      recent.forEach((t, k) => {
+        if (!CALL.test(t) || t === my) return;
+        seen[t] = (seen[t] || 0) + 1;
+        if (seen[t] >= 2) pick = { sender: t, at: toks.length - recent.length + k };
+      });
+      if (!pick) return null;
+      const before = toks.slice(Math.max(0, pick.at - 6), pick.at);
+      pick.to = before.includes("CQ") ? "CQ" : before.includes(my) && my ? my : null;
+      events.push(pick);
+      theirs = [pick];
+    }
     const last = theirs[theirs.length - 1];
     const dx = last.sender;
 
@@ -189,8 +204,14 @@ See the LICENSE file in the repository root for full license text.
 
     function titleCase(s) { return s.charAt(0) + s.slice(1).toLowerCase(); }
 
+    // The heard station stays until a new one is decoded or Clear is pressed,
+    // so an engine switch or a pause in the text doesn't wipe it.
+    function reparse() {
+      const h = parseHeard(text, myCall());
+      if (h) heard = h;
+    }
+
     function update() {
-      heard = parseHeard(text, myCall());
       const dx = callOverride || (heard && heard.dx) || "";
       if (heard && heard.dx !== lastDx) {        // new station: drop manual edits
         lastDx = heard.dx;
@@ -230,12 +251,21 @@ See the LICENSE file in the repository root for full license text.
       root.CWReplyHighlight = heard ? { call: heard.dx, report: heard.report, name: heard.name, qth: heard.qth } : null;
     }
 
-    document.addEventListener("cwbuddy:text", (e) => { text = e.detail.text || ""; update(); });
+    document.addEventListener("cwbuddy:text", (e) => {
+      text = e.detail.text || "";
+      if (e.detail.reset) {
+        heard = null; callOverride = null; rstOverride = null; lastDx = null;
+      }
+      reparse();
+      update();
+    });
     document.addEventListener("cwbuddy:signal", (e) => {
       const next = e.detail && e.detail.snrDb != null && e.detail.locked !== false ? e.detail.snrDb : null;
       if (next !== snrDb) { snrDb = next; update(); }
     });
-    document.addEventListener("cwbuddy:station-changed", update);
+    document.addEventListener("cwbuddy:station-changed", () => { reparse(); update(); });
+    els.call.addEventListener("blur", update);
+    els.rst.addEventListener("blur", update);
     document.querySelectorAll('input[name="replyStyle"]').forEach((r) => r.addEventListener("change", () => { app.set("replyStyle", style()); update(); }));
 
     els.call.addEventListener("input", () => {
