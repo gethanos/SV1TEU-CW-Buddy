@@ -53,12 +53,13 @@ https://github.com/e04/deepcw-engine: see NOTICE.
   // Tone finder (ideas from web-deep-cw-decoder estimateCwBinSnr + PeakDetector)
   const TONE_MIN_HZ = 300;
   const TONE_MAX_HZ = 1500;
-  const TONE_ANALYSIS_SECONDS = 2.5;   // shorter = faster reaction; noise still peaks below the lock level
-  const TONE_HOP = 128;
+  const TONE_ANALYSIS_SECONDS = 3;
+  const TONE_HOP = 64;                  // 20 ms steps, fine enough to see CW keying
   const TONE_ON_QUANTILE = 0.9;
-  // Pure noise measures about 7 dB (max 8.1 dB over 30 recordings with the
-  // 2.5 s window); a -14 dB CW signal measures about 12 dB.
+  // Pure noise measures about 7 dB; a -14 dB CW signal measures about 12 dB.
+  // A tone that is keyed like CW may lock lower than one that isn't.
   const TONE_LOCK_SNR_DB = 10;
+  const KEYED_LOCK_SNR_DB = 8.5;
   const TONE_RELEASE_SNR_DB = 8.5;
   const TONE_CONFIRM_STEPS = 2;
   const SIDEBAND_MASK_HZ = 150;
@@ -114,6 +115,40 @@ https://github.com/e04/deepcw-engine: see NOTICE.
   }
 
   // -------------------------------------------------------------------------
+  // Keying check: does this frequency switch on and off like CW? The 80 ms
+  // FFT window smears dits and the gaps between them, so instead of a strict
+  // dit/dah ratio this looks for several distinct bursts separated by real
+  // silence, with a duty cycle that is neither always on (carrier, hum) nor
+  // random blips (noise). Alone it passes ~4% of noise windows, so it is
+  // always combined with a level and persistence requirement.
+  // -------------------------------------------------------------------------
+  const FRAME_MS = (TONE_HOP / META.sample_rate) * 1000;
+  function isKeyed(series) {
+    const db = Array.from(series, (p) => 10 * Math.log10(p + 1e-20));
+    const sorted = db.slice().sort((a, b) => a - b);
+    const lo = sorted[Math.floor(0.2 * (sorted.length - 1))];
+    const hi = sorted[Math.floor(0.9 * (sorted.length - 1))];
+    const contrast = hi - lo;
+    if (contrast < 6) return false;
+    const onAt = lo + 0.6 * contrast, offAt = lo + 0.4 * contrast;
+    let state = false, len = 0, elements = 0, blips = 0, onFrames = 0;
+    const close = () => {
+      if (!state || !len) return;
+      const ms = len * FRAME_MS;
+      if (ms >= 80 && ms <= 1500) elements++;
+      else if (ms < 80) blips++;
+      onFrames += len;
+    };
+    for (const v of db) {
+      const next = state ? v > offAt : v > onAt;
+      if (next !== state) { close(); state = next; len = 1; } else len++;
+    }
+    close();
+    const duty = onFrames / db.length;
+    return elements >= 3 && blips <= elements && duty >= 0.15 && duty <= 0.85;
+  }
+
+  // -------------------------------------------------------------------------
   // Tone finder: per-bin keyed-on power (90th pct over time) vs band median.
   // Pure noise scores around 5 dB. Weaker bins near a much stronger one are
   // treated as keying sidebands and ignored.
@@ -151,15 +186,30 @@ https://github.com/e04/deepcw-engine: see NOTICE.
         snr[b] = 10 * Math.log10(Math.max(on, 1e-12) / noise);
       }
       const mask = Math.round(SIDEBAND_MASK_HZ / BIN_HZ);
-      let best = -1, bestSnr = -Infinity;
+      const candidates = [];
       for (let b = 0; b < bins; b++) {
         let masked = false;
         for (let o = Math.max(0, b - mask); o <= Math.min(bins - 1, b + mask); o++) {
           if (snr[o] - snr[b] > SIDEBAND_MASK_DB) { masked = true; break; }
         }
-        if (!masked && snr[b] > bestSnr) { bestSnr = snr[b]; best = b; }
+        if (!masked) candidates.push(b);
       }
-      if (best < 0) return null;
+      if (!candidates.length) return null;
+      candidates.sort((x, y) => snr[y] - snr[x]);
+      const keyedCache = new Map();
+      const keyedBin = (b) => {
+        if (!keyedCache.has(b)) keyedCache.set(b, isKeyed(powers.subarray(b * frames, (b + 1) * frames)));
+        return keyedCache.get(b);
+      };
+      // The strongest keyed peak above its lock level wins over a stronger
+      // tone that isn't keyed (a carrier or hum can't capture the tuner).
+      // A keyed bin within 3 bins of the strongest peak is that same signal's
+      // skirt: stay on the centre.
+      const keyedPick = candidates.slice(0, 6).find((b) => snr[b] >= KEYED_LOCK_SNR_DB && keyedBin(b));
+      const sameSignal = keyedPick !== undefined && Math.abs(keyedPick - candidates[0]) <= 3;
+      const best = keyedPick !== undefined && !sameSignal ? keyedPick : candidates[0];
+      const bestKeyed = keyedBin(best) || sameSignal;
+      const bestSnr = snr[best];
       // Sub-bin estimate for display (parabolic on dB values)
       let delta = 0;
       if (best > 0 && best < bins - 1) {
@@ -170,9 +220,15 @@ https://github.com/e04/deepcw-engine: see NOTICE.
         bin: this.minBin + best,
         hz: (this.minBin + best + delta) * BIN_HZ,
         snrDb: bestSnr,
+        keyed: bestKeyed,
         snrAt: (hz) => {
           const b = Math.round(hz / BIN_HZ) - this.minBin;
           return b >= 0 && b < bins ? snr[b] : -Infinity;
+        },
+        keyedAt: (hz) => {                    // keyed at hz or right next to it
+          const c = Math.round(hz / BIN_HZ) - this.minBin;
+          for (let b = Math.max(0, c - 1); b <= Math.min(bins - 1, c + 1); b++) if (keyedBin(b)) return true;
+          return false;
         }
       };
     }
@@ -191,6 +247,8 @@ https://github.com/e04/deepcw-engine: see NOTICE.
 
       const targetBin = this.targetHz == null ? -1 : Math.round(this.targetHz / BIN_HZ);
       this.lastSnrDb = this.targetHz == null ? a.snrDb : a.snrAt(this.targetHz);
+      const lockDb = a.keyed ? KEYED_LOCK_SNR_DB : TONE_LOCK_SNR_DB;
+      const targetKeyed = this.targetHz != null && a.keyedAt(this.targetHz);
 
       if (a.snrDb >= TONE_LOCK_SNR_DB && a.bin !== targetBin &&
           targetBin >= 0 && Math.abs(a.bin - targetBin) <= 3 && a.snrDb - this.lastSnrDb >= 3) {
@@ -201,12 +259,15 @@ https://github.com/e04/deepcw-engine: see NOTICE.
         this.locked = true;
         this.lastSnrDb = a.snrDb;
         this.candidateCount = 0;
-      } else if (a.snrDb >= TONE_LOCK_SNR_DB && a.bin !== targetBin) {
+      } else if (a.snrDb >= lockDb && a.bin !== targetBin && (targetBin < 0 || a.keyed)) {
+        // (leaving an existing target needs a CW-keyed candidate: hiss or a
+        // carrier must not pull the tuner away from where a station may return)
         // A strong tone somewhere else: retune after it persists
         if (Math.abs(a.bin - this.candidateBin) <= 1) this.candidateCount++;
         else { this.candidateBin = a.bin; this.candidateCount = 1; }
         const currentWeak = !this.locked || this.lastSnrDb < TONE_RELEASE_SNR_DB ||
-          Math.abs(a.bin - targetBin) === 1; // small drift: follow it
+          Math.abs(a.bin - targetBin) === 1 ||   // small drift: follow it
+          (!targetKeyed && Math.abs(a.bin - targetBin) > 3);   // CW elsewhere while parked on a non-CW tone
         if (this.candidateCount >= TONE_CONFIRM_STEPS && currentWeak) {
           this.targetHz = a.bin * BIN_HZ;
           this.locked = true;
@@ -216,7 +277,7 @@ https://github.com/e04/deepcw-engine: see NOTICE.
       } else {
         this.candidateCount = 0;
         if (this.locked && this.lastSnrDb < TONE_RELEASE_SNR_DB) this.locked = false; // hold target
-        else if (a.bin === targetBin && a.snrDb >= TONE_LOCK_SNR_DB) this.locked = true;
+        else if (a.bin === targetBin && a.snrDb >= lockDb) this.locked = true;
       }
       this.peakHz = a.hz;
       return this.status();
