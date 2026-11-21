@@ -49,6 +49,9 @@ https://github.com/e04/deepcw-engine: see NOTICE.
   const WORD_BOUNDARY_BLANK_HOPS = 134;
   const MIN_VIEW_WEIGHT = 1e-3;
   const UNCOVERED_LOG_PROB = -30;
+  // After a jump to a distant frequency, re-decode this much buffered audio
+  // there, so the new station's first characters aren't lost.
+  const REWIND_SECONDS = 8;
 
   // Tone finder (ideas from web-deep-cw-decoder estimateCwBinSnr + PeakDetector)
   const TONE_MIN_HZ = 300;
@@ -469,6 +472,18 @@ https://github.com/e04/deepcw-engine: see NOTICE.
       this.hasCommittedText = false;
     }
     get contextStartFrame() { return Math.max(0, this.frozenEnd - this.leftContextFrames); }
+
+    // Start over from an earlier frame (after a frequency jump). Text already
+    // committed stays; new text begins as a new word.
+    restartAt(frame) {
+      this.rowBase = frame;
+      this.sums = new Float32Array(0);
+      this.weights = new Float32Array(0);
+      this.coveredEnd = frame;
+      this.frozenEnd = frame;
+      this.committedEnd = frame;
+      this.context = { previousSymbol: "space", blankFrames: 0 };
+    }
     getWindowStartFrame(endSample) {
       return Math.max(this.contextStartFrame, Math.ceil((endSample - this.maxSegmentSamples) / this.hopLength));
     }
@@ -581,6 +596,8 @@ https://github.com/e04/deepcw-engine: see NOTICE.
       this.base = 0;      // absolute sample index of buf[0]
       this.total = 0;     // absolute samples received
       this.transcript = "";
+      this.lastTargetHz = null;
+      this.leftAt = [];    // { hz, sample }: when we left a frequency (no rewinding into it)
     }
 
     push(samples) {
@@ -634,13 +651,44 @@ https://github.com/e04/deepcw-engine: see NOTICE.
     async step() {
       const toneAudio = this.buf.subarray(Math.max(0, this.bufLen - TONE_ANALYSIS_SECONDS * META.sample_rate), this.bufLen);
       const tone = this.tone.update(toneAudio);
+      const flushed = this.rewindOnJump(tone.targetHz);
       let result = { committed: "", pending: "" };
       if (tone.targetHz != null && this.total >= MIN_PENDING_SECONDS * META.sample_rate) {
         const startFrame = this.stitcher.getWindowStartFrame(this.total);
         result = (await this.runWindow(startFrame, this.total, false, tone.targetHz)) || result;
       }
       this.trim();
-      return { tone, ...result };
+      return { tone, ...result, committed: flushed + result.committed };
+    }
+
+    // On a jump to a distant frequency (more than 3 bins), decode the last
+    // REWIND_SECONDS again at the new frequency, but never into time that was
+    // already decoded there (returning to a station must not repeat its text).
+    // Small moves aren't rewound: the old frequency already copied most of it.
+    // Returns text from the old frequency that was finalised before the rewind.
+    rewindOnJump(targetHz) {
+      const prev = this.lastTargetHz;
+      this.lastTargetHz = targetHz;
+      if (prev == null || targetHz == null || prev === targetHz) return "";
+      const near = (a, b) => Math.abs(Math.round(a / BIN_HZ) - Math.round(b / BIN_HZ)) <= 3;
+      this.leftAt = this.leftAt.filter((e) => !near(e.hz, prev));
+      this.leftAt.push({ hz: prev, sample: this.total });
+      if (near(prev, targetHz)) return "";
+      const hop = this.stitcher.hopLength;
+      let from = Math.max(this.total - REWIND_SECONDS * META.sample_rate, this.base);
+      for (const e of this.leftAt) if (near(e.hz, targetHz)) from = Math.max(from, e.sample);
+      const frame = Math.ceil(from / hop);
+      if (frame >= this.stitcher.frozenEnd) return "";   // nothing final to redo
+      // Finalise what the old frequency already decoded (its last characters
+      // would otherwise be dropped), then start over at the new one.
+      let flushed = "";
+      const { committed } = this.stitcher.take(true);
+      if (committed && committed.text) {
+        flushed = (committed.prependSpace && this.transcript ? " " : "") + committed.text;
+        this.transcript += flushed;
+      }
+      this.stitcher.restartAt(frame);
+      return flushed;
     }
 
     // Decode everything still buffered (call on stop).
