@@ -53,11 +53,11 @@ https://github.com/e04/deepcw-engine: see NOTICE.
   // Tone finder (ideas from web-deep-cw-decoder estimateCwBinSnr + PeakDetector)
   const TONE_MIN_HZ = 300;
   const TONE_MAX_HZ = 1500;
-  const TONE_ANALYSIS_SECONDS = 4;
+  const TONE_ANALYSIS_SECONDS = 2.5;   // shorter = faster reaction; noise still peaks below the lock level
   const TONE_HOP = 128;
   const TONE_ON_QUANTILE = 0.9;
-  // Pure noise measures about 7 dB (max 7.4 dB over 30 recordings); a
-  // -14 dB CW signal measures about 12 dB.
+  // Pure noise measures about 7 dB (max 8.1 dB over 30 recordings with the
+  // 2.5 s window); a -14 dB CW signal measures about 12 dB.
   const TONE_LOCK_SNR_DB = 10;
   const TONE_RELEASE_SNR_DB = 8.5;
   const TONE_CONFIRM_STEPS = 2;
@@ -192,7 +192,16 @@ https://github.com/e04/deepcw-engine: see NOTICE.
       const targetBin = this.targetHz == null ? -1 : Math.round(this.targetHz / BIN_HZ);
       this.lastSnrDb = this.targetHz == null ? a.snrDb : a.snrAt(this.targetHz);
 
-      if (a.snrDb >= TONE_LOCK_SNR_DB && a.bin !== targetBin) {
+      if (a.snrDb >= TONE_LOCK_SNR_DB && a.bin !== targetBin &&
+          targetBin >= 0 && Math.abs(a.bin - targetBin) <= 3 && a.snrDb - this.lastSnrDb >= 3) {
+        // A clearly stronger peak close by (the station moved, or RIT/VFO was
+        // turned): follow it now. The old bin still catches some of its
+        // energy, so it would never look weak enough to release.
+        this.targetHz = a.bin * BIN_HZ;
+        this.locked = true;
+        this.lastSnrDb = a.snrDb;
+        this.candidateCount = 0;
+      } else if (a.snrDb >= TONE_LOCK_SNR_DB && a.bin !== targetBin) {
         // A strong tone somewhere else: retune after it persists
         if (Math.abs(a.bin - this.candidateBin) <= 1) this.candidateCount++;
         else { this.candidateBin = a.bin; this.candidateCount = 1; }
