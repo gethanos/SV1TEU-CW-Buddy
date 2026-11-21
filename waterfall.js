@@ -146,7 +146,11 @@ Copyright (c) 2026 e04, MIT License: see NOTICE.
         const db = 10 * Math.log10(sum / this.timeData.length + 1e-12);
         this.onLevel(Math.max(0, Math.min(1, (db + 60) / 54)));
       }
-      this.accum += ((now - this.lastTime) / 1000) * PX_PER_SECOND * (this.canvas.width / Math.max(1, this.canvas.clientWidth));
+      // Hidden canvas (e.g. the phone's Your reply pane): don't draw. A zero
+      // clientWidth would otherwise make every frame redraw the whole canvas.
+      const shown = this.canvas.clientWidth;
+      if (!shown) { this.lastTime = now; this.accum = 0; return; }
+      this.accum += ((now - this.lastTime) / 1000) * PX_PER_SECOND * (this.canvas.width / shown);
       this.lastTime = now;
       // Clamp: after a long gap (tab in background) draw at most one screen
       const cols = Math.min(Math.floor(this.accum), this.canvas.width);
